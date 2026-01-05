@@ -5,15 +5,14 @@ FROM alpine:3.23.2 AS builder
 ARG NUT_VERSION=2.8.3
 
 # Install build dependencies for NUT compilation
-# hadolint ignore=DL3018
 RUN apk add --no-cache \
-    build-base \
-    autoconf \
-    automake \
-    libtool \
-    pkgconfig \
-    gd-dev \
-    curl
+    build-base=0.5-r3 \
+    autoconf=2.72-r1 \
+    automake=1.18.1-r0 \
+    libtool=2.5.4-r2 \
+    pkgconf=2.5.1-r0 \
+    gd-dev=2.3.3-r10 \
+    curl=8.17.0-r1
 
 # Download and extract NUT source
 WORKDIR /build
