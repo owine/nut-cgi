@@ -12,7 +12,9 @@
   "customManagers": [
     {
       "customType": "regex",
-      "fileMatch": ["^Dockerfile$"],
+      "managerFilePatterns": [
+        "/^Dockerfile$/"
+      ],
       "matchStrings": [
         "ARG NUT_VERSION=(?<currentValue>.*?)\\n"
       ],
@@ -22,7 +24,9 @@
     },
     {
       "customType": "regex",
-      "fileMatch": ["^Dockerfile$"],
+      "managerFilePatterns": [
+        "/^Dockerfile$/"
+      ],
       "matchStrings": [
         "(?<depName>lighttpd|curl|openssl|gd|build-base|autoconf|automake|libtool|pkgconf|gd-dev)=(?<currentValue>[^\\s]+)"
       ],
@@ -63,13 +67,13 @@
       "matchDatasources": [
         "repology"
       ],
-      "matchPackagePatterns": [
-        "^alpine_3_23/"
-      ],
       "groupName": "alpine packages",
       "automerge": true,
       "matchUpdateTypes": [
         "patch"
+      ],
+      "matchPackageNames": [
+        "/^alpine_3_23//"
       ]
     },
     {
