@@ -45,11 +45,10 @@ RUN ./configure \
     --with-group=nut && \
     make && \
     make install DESTDIR=/build/rootfs && \
-    # Copy sample HTML templates (not installed by default)
-    cp conf/upsstats.html.sample /build/rootfs/usr/share/nut/html/upsstats.html && \
-    cp conf/upsstats-single.html.sample /build/rootfs/usr/share/nut/html/upsstats-single.html && \
-    cp conf/upsset.html.sample /build/rootfs/usr/share/nut/html/upsset.html 2>/dev/null || true && \
-    cp conf/upsimage.html.sample /build/rootfs/usr/share/nut/html/upsimage.html 2>/dev/null || true
+    # Copy sample HTML templates to /etc/nut (where CGI programs expect them)
+    cp /build/rootfs/etc/nut/upsstats.html.sample /build/rootfs/etc/nut/upsstats.html && \
+    cp /build/rootfs/etc/nut/upsstats-single.html.sample /build/rootfs/etc/nut/upsstats-single.html && \
+    cp /build/rootfs/etc/nut/upsset.conf.sample /build/rootfs/etc/nut/upsset.conf 2>/dev/null || true
 
 # ============================================================================
 # Runtime Stage - Minimal footprint with pinned versions

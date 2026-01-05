@@ -15,9 +15,10 @@ if [ -z "$response" ]; then
     exit 1
 fi
 
-# Tier 3: Valid CGI output (not error page)
-if echo "$response" | grep -qi "error\|failed\|not found"; then
-    echo "WARN: nut-cgi returned error content"
+# Tier 3: Valid CGI output (check for CGI infrastructure errors, not UPS connection errors)
+# Note: UPS connection errors are expected when no UPS is configured/reachable
+if echo "$response" | grep -qi "can't open template file\|internal server error\|500 error"; then
+    echo "ERROR: nut-cgi infrastructure failure"
     exit 1
 fi
 
