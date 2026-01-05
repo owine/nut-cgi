@@ -1,5 +1,5 @@
 # Multi-stage build for minimal runtime image
-FROM alpine:3.23 AS builder
+FROM alpine:3.23.2 AS builder
 
 # NUT version to build from source
 ARG NUT_VERSION=2.8.3
@@ -44,7 +44,7 @@ RUN ./configure \
 # ============================================================================
 # Runtime Stage - Minimal footprint with pinned versions
 # ============================================================================
-FROM alpine:3.23
+FROM alpine:3.23.2
 
 # Image metadata
 LABEL org.opencontainers.image.title="nut-cgi" \
