@@ -1,6 +1,9 @@
 # Multi-stage build for minimal runtime image
 FROM alpine:3.23 AS builder
 
+# NUT version to build from source
+ARG NUT_VERSION=2.8.3
+
 # Install build dependencies for NUT compilation
 RUN apk add --no-cache \
     build-base \
@@ -18,12 +21,12 @@ RUN apk add --no-cache \
 
 # Download and extract NUT source
 WORKDIR /build
-RUN curl -L https://github.com/networkupstools/nut/releases/download/v2.8.3/nut-2.8.3.tar.gz -o nut.tar.gz && \
+RUN curl -L https://github.com/networkupstools/nut/releases/download/v${NUT_VERSION}/nut-${NUT_VERSION}.tar.gz -o nut.tar.gz && \
     tar -xzf nut.tar.gz && \
     rm nut.tar.gz
 
 # Build NUT with CGI support
-WORKDIR /build/nut-2.8.3
+WORKDIR /build/nut-${NUT_VERSION}
 RUN ./configure \
     --prefix=/usr \
     --sysconfdir=/etc/nut \
