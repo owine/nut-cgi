@@ -1,24 +1,128 @@
-FROM debian:latest
+# Multi-stage build for minimal runtime image
+FROM alpine:3.23 AS builder
 
-RUN apt-get -y update && \
-    apt-get -y install lighttpd nut-cgi curl
+# Install build dependencies for NUT compilation
+RUN apk add --no-cache \
+    build-base \
+    autoconf \
+    automake \
+    libtool \
+    pkgconfig \
+    libusb-dev \
+    neon-dev \
+    net-snmp-dev \
+    openssl-dev \
+    libmodbus-dev \
+    gd-dev \
+    curl
 
-RUN apt-get -y autoremove && \
-    apt-get clean all && \
-    rm -rf /var/lib/apt/lists/* /tmp/* /var/tmp/*
+# Download and extract NUT source
+WORKDIR /build
+RUN curl -L https://github.com/networkupstools/nut/releases/download/v2.8.3/nut-2.8.3.tar.gz -o nut.tar.gz && \
+    tar -xzf nut.tar.gz && \
+    rm nut.tar.gz
 
-RUN rm -f /etc/lighttpd/conf-enabled/*-unconfigured.conf && \
-    ln -s /etc/lighttpd/conf-available/*-accesslog.conf /etc/lighttpd/conf-enabled/ && \
-    ln -s /etc/lighttpd/conf-available/*-cgi.conf /etc/lighttpd/conf-enabled/
+# Build NUT with CGI support
+WORKDIR /build/nut-2.8.3
+RUN ./configure \
+    --prefix=/usr \
+    --sysconfdir=/etc/nut \
+    --with-cgi \
+    --with-cgibindir=/usr/lib/cgi-bin/nut \
+    --with-htmlpath=/usr/share/nut/html \
+    --with-dev \
+    --with-serial \
+    --with-usb \
+    --with-snmp \
+    --with-neon \
+    --with-ssl \
+    --with-openssl \
+    --datadir=/usr/share/nut \
+    --with-user=nut \
+    --with-group=nut && \
+    make && \
+    make install DESTDIR=/build/rootfs
 
-RUN sed -i 's|/cgi-bin/|/|g' /etc/lighttpd/conf-enabled/*-cgi.conf && \
+# ============================================================================
+# Runtime Stage - Minimal footprint with pinned versions
+# ============================================================================
+FROM alpine:3.23
+
+# Image metadata
+LABEL org.opencontainers.image.title="nut-cgi" \
+      org.opencontainers.image.description="Network UPS Tools CGI interface with lighttpd on Alpine Linux" \
+      org.opencontainers.image.vendor="owine" \
+      org.opencontainers.image.source="https://github.com/owine/nut-cgi" \
+      org.opencontainers.image.licenses="MIT"
+
+# Install runtime dependencies with pinned versions
+RUN apk add --no-cache \
+    lighttpd=1.4.82-r0 \
+    curl=8.17.0-r1 \
+    libusb=1.0.29-r0 \
+    neon=0.35.0-r0 \
+    net-snmp-libs=5.9.4-r2 \
+    openssl=3.4.0-r3 \
+    libmodbus=3.1.10-r0 \
+    gd=2.3.3-r11 && \
+    # Verify installations
+    lighttpd -v && \
+    curl --version
+
+# Copy compiled NUT binaries and CGI programs from builder
+COPY --from=builder /build/rootfs/usr/lib/cgi-bin/nut /usr/lib/cgi-bin/nut
+COPY --from=builder /build/rootfs/usr/share/nut /usr/share/nut
+COPY --from=builder /build/rootfs/etc/nut /etc/nut
+
+# Create non-root user with fixed UID/GID for default operation
+# UID 1000 is standard for first user, ensures compatibility
+RUN addgroup -g 1000 nut && \
+    adduser -D -u 1000 -G nut -h /home/nut nut
+
+# Configure lighttpd for non-root operation and arbitrary UID support
+RUN mkdir -p /var/log/lighttpd /var/lib/lighttpd && \
+    # Make directories accessible by any UID (for --user override)
+    chown -R nut:nut /var/log/lighttpd /var/lib/lighttpd && \
+    chmod 755 /var/log/lighttpd /var/lib/lighttpd && \
+    # Disable default unconfigured site
+    rm -f /etc/lighttpd/conf.d/*-unconfigured.conf
+
+# Configure lighttpd: enable CGI, set document root, configure logging
+RUN sed -i 's|^#\(.*mod_accesslog.*\)|\1|' /etc/lighttpd/lighttpd.conf && \
+    sed -i 's|^#\(.*mod_cgi.*\)|\1|' /etc/lighttpd/lighttpd.conf && \
+    # Set document root to nut CGI directory
     sed -i 's|^\(server.document-root.*=\).*|\1 "/usr/lib/cgi-bin/nut"|g' /etc/lighttpd/lighttpd.conf && \
+    # Set default index to upsstats.cgi
     sed -i 's|^\(index-file.names.*=\).*|\1 ( "upsstats.cgi" )|g' /etc/lighttpd/lighttpd.conf && \
-    sed -i '/alias.url/d' /etc/lighttpd/conf-enabled/*-cgi.conf
+    # Configure PID file in /tmp for any UID to write
+    sed -i 's|^\(server.pid-file.*=\).*|\1 "/tmp/lighttpd.pid"|g' /etc/lighttpd/lighttpd.conf && \
+    # Configure CGI to serve from root path (remove /cgi-bin/ prefix)
+    echo '' >> /etc/lighttpd/lighttpd.conf && \
+    echo '# CGI configuration for nut' >> /etc/lighttpd/lighttpd.conf && \
+    echo 'cgi.assign = ( ".cgi" => "" )' >> /etc/lighttpd/lighttpd.conf
 
-HEALTHCHECK --interval=30s --timeout=10s --start-period=10s --retries=3 \
-  CMD curl -f http://localhost/ || exit 1
+# Make NUT config directory world-readable for --user UID override compatibility
+RUN chmod 755 /etc/nut && \
+    # Ensure CGI binaries are executable
+    chmod 755 /usr/lib/cgi-bin/nut/*.cgi
 
+# Copy health check script with execute permissions for any user
+COPY --chmod=0755 healthcheck.sh /healthcheck.sh
+
+# Switch to non-root user for runtime
+# Can be overridden with docker run --user <uid>:<gid>
+USER nut
+
+# Expose HTTP port
 EXPOSE 80
 
-ENTRYPOINT ["/usr/sbin/lighttpd", "-D", "-f", "/etc/lighttpd/lighttpd.conf"]
+# Health check using enhanced script
+# - interval=30s: Check every 30 seconds
+# - timeout=10s: Allow 10s for CGI processing
+# - start-period=15s: Grace period for container initialization
+# - retries=3: Require 3 consecutive failures before unhealthy
+HEALTHCHECK --interval=30s --timeout=10s --start-period=15s --retries=3 \
+    CMD ["/healthcheck.sh"]
+
+# Run lighttpd in foreground mode
+CMD ["lighttpd", "-D", "-f", "/etc/lighttpd/lighttpd.conf"]
