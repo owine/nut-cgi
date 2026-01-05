@@ -5,6 +5,7 @@ FROM alpine:3.23 AS builder
 ARG NUT_VERSION=2.8.3
 
 # Install build dependencies for NUT compilation
+# hadolint ignore=DL3018
 RUN apk add --no-cache \
     build-base \
     autoconf \
@@ -48,6 +49,7 @@ RUN ./configure \
     # Copy sample HTML templates to /etc/nut (where CGI programs expect them)
     cp /build/rootfs/etc/nut/upsstats.html.sample /build/rootfs/etc/nut/upsstats.html && \
     cp /build/rootfs/etc/nut/upsstats-single.html.sample /build/rootfs/etc/nut/upsstats-single.html && \
+    # shellcheck disable=SC2015
     cp /build/rootfs/etc/nut/upsset.conf.sample /build/rootfs/etc/nut/upsset.conf 2>/dev/null || true
 
 # ============================================================================

@@ -1,6 +1,7 @@
+---
 name: Build and Push Multi-Arch Image
 
-on:
+"on":
   push:
     branches: ["master"]
     tags: ["v*.*.*"]
