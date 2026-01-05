@@ -4,7 +4,7 @@
 services:
   nut-cgi:
     # Use specific version tag in production, not latest
-    image: ghcr.io/owine/nut-cgi:latest
+    image: ghcr.io/owine/nut-cgi:latest@sha256:04bae7d113bbc3939f86da093029f680998110e7c5273bcd44f123d83543fe9c
 
     # Optional: Run as specific UID/GID
     # Useful when you need to match host filesystem permissions
