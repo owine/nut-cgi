@@ -73,7 +73,7 @@ RUN apk add --no-cache \
     curl --version
 
 # Copy compiled NUT binaries and CGI programs from builder
-COPY --from=builder /build/rootfs/usr/lib/cgi-bin/nut /usr/lib/cgi-bin/nut
+COPY --from=builder /build/rootfs/usr/cgi-bin /usr/lib/cgi-bin/nut
 COPY --from=builder /build/rootfs/usr/share/nut /usr/share/nut
 COPY --from=builder /build/rootfs/etc/nut /etc/nut
 
