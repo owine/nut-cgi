@@ -9,6 +9,27 @@
   ],
   "semanticCommits": "enabled",
   "commitMessagePrefix": "chore(deps):",
+  "customManagers": [
+    {
+      "customType": "regex",
+      "fileMatch": ["^Dockerfile$"],
+      "matchStrings": [
+        "ARG NUT_VERSION=(?<currentValue>.*?)\\n"
+      ],
+      "datasourceTemplate": "github-releases",
+      "depNameTemplate": "networkupstools/nut",
+      "extractVersionTemplate": "^v(?<version>.*)$"
+    },
+    {
+      "customType": "regex",
+      "fileMatch": ["^Dockerfile$"],
+      "matchStrings": [
+        "(?<depName>lighttpd|curl|openssl|gd|build-base|autoconf|automake|libtool|pkgconf|gd-dev)=(?<currentValue>[^\\s]+)"
+      ],
+      "datasourceTemplate": "repology",
+      "depNameTemplate": "alpine_3_23/{{{depName}}}"
+    }
+  ],
   "packageRules": [
     {
       "description": "Alpine base image - auto-merge patch and digest updates",
@@ -27,36 +48,24 @@
       ]
     },
     {
-      "description": "NUT source version - track GitHub releases",
-      "matchManagers": [
-        "custom.regex"
+      "description": "NUT source version - group and manual review",
+      "matchDatasources": [
+        "github-releases"
       ],
-      "matchStrings": [
-        "ARG NUT_VERSION=(?<currentValue>.*?)\\n"
+      "matchPackageNames": [
+        "networkupstools/nut"
       ],
-      "datasourceTemplate": "github-releases",
-      "depNameTemplate": "networkupstools/nut",
-      "extractVersionTemplate": "^v(?<version>.*)$",
       "groupName": "nut source",
       "automerge": false
     },
     {
-      "description": "Alpine packages - track with regex manager",
-      "matchManagers": [
-        "custom.regex"
+      "description": "Alpine packages - group and auto-merge patches",
+      "matchDatasources": [
+        "repology"
       ],
-      "matchStrings": [
-        "lighttpd=(?<currentValue>.*?)\\s",
-        "curl=(?<currentValue>.*?)\\s",
-        "libusb=(?<currentValue>.*?)\\s",
-        "neon=(?<currentValue>.*?)\\s",
-        "net-snmp-libs=(?<currentValue>.*?)\\s",
-        "openssl=(?<currentValue>.*?)\\s",
-        "libmodbus=(?<currentValue>.*?)\\s",
-        "gd=(?<currentValue>.*?)\\s"
+      "matchPackagePatterns": [
+        "^alpine_3_23/"
       ],
-      "datasourceTemplate": "repology",
-      "depNameTemplate": "alpine_3_23/{{{packageName}}}",
       "groupName": "alpine packages",
       "automerge": true,
       "matchUpdateTypes": [
