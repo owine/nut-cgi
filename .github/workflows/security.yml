@@ -24,12 +24,19 @@ jobs:
   scan:
     name: Trivy Security Scan
     runs-on: ubuntu-24.04
+    # Only run if:
+    # 1. Build workflow succeeded AND wasn't triggered by a PR (PRs don't push images), OR
+    # 2. This is a scheduled/manual run
     if: >-
-      ${{ github.event.workflow_run.conclusion == 'success' ||
-      github.event_name != 'workflow_run' }}
+      ${{ (github.event.workflow_run.conclusion == 'success' &&
+           github.event.workflow_run.event != 'pull_request') ||
+          github.event_name != 'workflow_run' }}
     steps:
       - name: Checkout code
         uses: actions/checkout@8e8c483db84b4bee98b60c0593521ed34d9990e8 # v6.0.1
+        with:
+          # Checkout the exact ref that triggered the build
+          ref: ${{ github.event.workflow_run.head_sha || github.sha }}
 
       - name: Log in to GitHub Container Registry
         uses: docker/login-action@5e57cd118135c172c3672efd75eb46360885c0ef # v3.6.0
@@ -38,13 +45,27 @@ jobs:
           username: ${{ github.actor }}
           password: ${{ secrets.GITHUB_TOKEN }}
 
-      - name: Pull latest image
-        run: docker pull ${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}:latest
+      - name: Determine image tag to scan
+        id: image-tag
+        run: |
+          if [[ "${{ github.event_name }}" == "workflow_run" ]]; then
+            # Scan the SHA-tagged image from the build that just completed
+            # Extract short SHA (first 7 characters) to match metadata-action default
+            SHORT_SHA="${{ github.event.workflow_run.head_sha }}"
+            SHORT_SHA="${SHORT_SHA:0:7}"
+            echo "tag=sha-${SHORT_SHA}" >> $GITHUB_OUTPUT
+          else
+            # For scheduled/manual runs, scan latest
+            echo "tag=latest" >> $GITHUB_OUTPUT
+          fi
+
+      - name: Pull image
+        run: docker pull ${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}:${{ steps.image-tag.outputs.tag }}
 
       - name: Run Trivy vulnerability scanner
         uses: aquasecurity/trivy-action@b6643a29fecd7f34b3597bc6acb0a98b03d33ff8 # 0.33.1
         with:
-          image-ref: ${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}:latest
+          image-ref: ${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}:${{ steps.image-tag.outputs.tag }}
           format: 'sarif'
           output: 'trivy-results.sarif'
           severity: 'HIGH,CRITICAL'
@@ -60,6 +81,6 @@ jobs:
         if: always()
         uses: aquasecurity/trivy-action@b6643a29fecd7f34b3597bc6acb0a98b03d33ff8 # 0.33.1
         with:
-          image-ref: ${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}:latest
+          image-ref: ${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}:${{ steps.image-tag.outputs.tag }}
           format: 'table'
           severity: 'HIGH,CRITICAL'
