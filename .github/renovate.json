@@ -1,7 +1,7 @@
 {
   "$schema": "https://docs.renovatebot.com/renovate-schema.json",
   "extends": [
-    "config:base"
+    "config:recommended"
   ],
   "timezone": "America/New_York",
   "schedule": [
@@ -12,16 +12,25 @@
   "packageRules": [
     {
       "description": "Alpine base image - auto-merge patch and digest updates",
-      "matchDatasources": ["docker"],
-      "matchPackageNames": ["alpine"],
+      "matchDatasources": [
+        "docker"
+      ],
+      "matchPackageNames": [
+        "alpine"
+      ],
       "groupName": "alpine base image",
       "automerge": true,
       "automergeType": "pr",
-      "matchUpdateTypes": ["patch", "digest"]
+      "matchUpdateTypes": [
+        "patch",
+        "digest"
+      ]
     },
     {
       "description": "NUT source version - track GitHub releases",
-      "matchManagers": ["regex"],
+      "matchManagers": [
+        "custom.regex"
+      ],
       "matchStrings": [
         "ARG NUT_VERSION=(?<currentValue>.*?)\\n"
       ],
@@ -33,7 +42,9 @@
     },
     {
       "description": "Alpine packages - track with regex manager",
-      "matchManagers": ["regex"],
+      "matchManagers": [
+        "custom.regex"
+      ],
       "matchStrings": [
         "lighttpd=(?<currentValue>.*?)\\s",
         "curl=(?<currentValue>.*?)\\s",
@@ -48,21 +59,32 @@
       "depNameTemplate": "alpine_3_23/{{{packageName}}}",
       "groupName": "alpine packages",
       "automerge": true,
-      "matchUpdateTypes": ["patch"]
+      "matchUpdateTypes": [
+        "patch"
+      ]
     },
     {
       "description": "GitHub Actions - group and auto-merge minor/patch",
-      "matchManagers": ["github-actions"],
+      "matchManagers": [
+        "github-actions"
+      ],
       "groupName": "github actions",
       "automerge": true,
       "automergeType": "pr",
-      "matchUpdateTypes": ["patch", "minor"]
+      "matchUpdateTypes": [
+        "patch",
+        "minor"
+      ]
     }
   ],
   "vulnerabilityAlerts": {
     "enabled": true,
-    "labels": ["security"],
-    "assignees": ["owine"]
+    "labels": [
+      "security"
+    ],
+    "assignees": [
+      "owine"
+    ]
   },
   "prConcurrentLimit": 5,
   "prHourlyLimit": 2
