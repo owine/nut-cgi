@@ -53,10 +53,10 @@ jobs:
             # Extract short SHA (first 7 characters) to match metadata-action default
             SHORT_SHA="${{ github.event.workflow_run.head_sha }}"
             SHORT_SHA="${SHORT_SHA:0:7}"
-            echo "tag=sha-${SHORT_SHA}" >> $GITHUB_OUTPUT
+            echo "tag=sha-${SHORT_SHA}" >> "$GITHUB_OUTPUT"
           else
             # For scheduled/manual runs, scan latest
-            echo "tag=latest" >> $GITHUB_OUTPUT
+            echo "tag=latest" >> "$GITHUB_OUTPUT"
           fi
 
       - name: Pull image
