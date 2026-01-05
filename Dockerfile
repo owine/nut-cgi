@@ -65,9 +65,9 @@ RUN apk add --no-cache \
     libusb=1.0.29-r0 \
     neon=0.35.0-r0 \
     net-snmp-libs=5.9.4-r2 \
-    openssl=3.4.0-r3 \
+    openssl=3.5.4-r0 \
     libmodbus=3.1.10-r0 \
-    gd=2.3.3-r11 && \
+    gd=2.3.3-r10 && \
     # Verify installations
     lighttpd -v && \
     curl --version
