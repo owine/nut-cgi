@@ -12,7 +12,7 @@
   "customManagers": [
     {
       "customType": "regex",
-      "fileMatch": ["^Dockerfile$"],
+      "managerFilePatterns": ["Dockerfile"],
       "matchStrings": [
         "ARG NUT_VERSION=(?<currentValue>.*?)\\n"
       ],
@@ -22,7 +22,7 @@
     },
     {
       "customType": "regex",
-      "fileMatch": ["^Dockerfile$"],
+      "managerFilePatterns": ["Dockerfile"],
       "matchStrings": [
         "(?<depName>lighttpd|curl|openssl|gd|build-base|autoconf|automake|libtool|pkgconf|gd-dev)=(?<currentValue>[^\\s]+)"
       ],
@@ -32,14 +32,14 @@
   ],
   "packageRules": [
     {
-      "description": "Alpine base image - auto-merge patch and digest updates",
+      "description": "Alpine Docker base image - auto-merge patch and digest updates",
       "matchDatasources": [
         "docker"
       ],
       "matchPackageNames": [
         "alpine"
       ],
-      "groupName": "alpine base image",
+      "groupName": "alpine docker image",
       "automerge": true,
       "automergeType": "pr",
       "matchUpdateTypes": [
@@ -48,7 +48,7 @@
       ]
     },
     {
-      "description": "NUT source version - group and manual review",
+      "description": "NUT source version - manual review required",
       "matchDatasources": [
         "github-releases"
       ],
@@ -59,21 +59,21 @@
       "automerge": false
     },
     {
-      "description": "Alpine packages - group and auto-merge patches",
+      "description": "Alpine APK packages - auto-merge patch updates",
       "matchDatasources": [
         "repology"
       ],
-      "matchPackagePatterns": [
-        "^alpine_3_23/"
+      "matchPackageNames": [
+        "/^alpine_3_23/"
       ],
-      "groupName": "alpine packages",
+      "groupName": "alpine apk packages",
       "automerge": true,
       "matchUpdateTypes": [
         "patch"
       ]
     },
     {
-      "description": "GitHub Actions - group and auto-merge minor/patch",
+      "description": "GitHub Actions - auto-merge minor and patch updates",
       "matchManagers": [
         "github-actions"
       ],
