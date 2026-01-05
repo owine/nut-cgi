@@ -1,11 +1,10 @@
 ---
 name: Security Scan
 "on":
-  # Run after successful build
+  # Run after successful build (main branch and release tags)
   workflow_run:
     workflows: ["Build and Push Multi-Arch Image"]
     types: [completed]
-    branches: [main]
   # Weekly scheduled scan
   schedule:
     - cron: '0 0 * * 1'  # Monday at 00:00 UTC
