@@ -5,7 +5,7 @@ name: Security Scan
   workflow_run:
     workflows: ["Build and Push Multi-Arch Image"]
     types: [completed]
-    branches: [master]
+    branches: [main]
   # Weekly scheduled scan
   schedule:
     - cron: '0 0 * * 1'  # Monday at 00:00 UTC
