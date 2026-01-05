@@ -2,7 +2,7 @@
 FROM alpine:3.23.2 AS builder
 
 # NUT version to build from source
-ARG NUT_VERSION=2.8.3
+ARG NUT_VERSION=2.8.4
 
 # Install build dependencies for NUT compilation
 RUN apk add --no-cache \
