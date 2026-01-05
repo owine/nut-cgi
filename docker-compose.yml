@@ -1,0 +1,55 @@
+# Example docker-compose.yml for local testing and development
+# This demonstrates security-hardened deployment with version pinning
+
+services:
+  nut-cgi:
+    # Use specific version tag in production, not latest
+    image: ghcr.io/owine/nut-cgi:latest
+
+    # Optional: Run as specific UID/GID
+    # Useful when you need to match host filesystem permissions
+    # user: "1000:1000"
+
+    # Security: Read-only root filesystem
+    # Container can only write to explicitly mounted tmpfs volumes
+    read_only: true
+
+    # Security: Writable temp space for PIDs and logs
+    tmpfs:
+      - /tmp:mode=1777
+
+    # Security: Prevent privilege escalation
+    security_opt:
+      - no-new-privileges:true
+
+    # Security: Drop all capabilities (none needed for web serving)
+    cap_drop:
+      - ALL
+
+    # Mount your hosts.conf configuration
+    # This file defines which UPS systems to monitor
+    volumes:
+      - ./hosts.conf:/etc/nut/hosts.conf:ro
+
+    # Map container port 80 to host port 8000
+    ports:
+      - "8000:80"
+
+    # Restart policy
+    restart: unless-stopped
+
+    # Optional: Resource limits
+    # deploy:
+    #   resources:
+    #     limits:
+    #       cpus: '0.5'
+    #       memory: 128M
+    #     reservations:
+    #       cpus: '0.1'
+    #       memory: 64M
+
+# Example hosts.conf content (create this file in same directory):
+#
+# MONITOR myups@192.168.1.100 "Living Room UPS"
+# MONITOR serverups@192.168.1.101 "Server Rack UPS"
+#
