@@ -90,16 +90,13 @@ RUN mkdir -p /var/log/lighttpd /var/lib/lighttpd && \
     # Disable default unconfigured site
     rm -f /etc/lighttpd/conf.d/*-unconfigured.conf
 
-# Configure lighttpd: enable CGI, set document root, configure logging
-RUN sed -i 's|^#\(.*mod_accesslog.*\)|\1|' /etc/lighttpd/lighttpd.conf && \
-    sed -i 's|^#\(.*mod_cgi.*\)|\1|' /etc/lighttpd/lighttpd.conf && \
-    # Set document root to nut CGI directory
-    sed -i 's|^\(server.document-root.*=\).*|\1 "/usr/lib/cgi-bin/nut"|g' /etc/lighttpd/lighttpd.conf && \
-    # Set default index to upsstats.cgi
-    sed -i 's|^\(index-file.names.*=\).*|\1 ( "upsstats.cgi" )|g' /etc/lighttpd/lighttpd.conf && \
-    # Configure PID file in /tmp for any UID to write
-    sed -i 's|^\(server.pid-file.*=\).*|\1 "/tmp/lighttpd.pid"|g' /etc/lighttpd/lighttpd.conf && \
-    # Configure CGI to serve from root path (remove /cgi-bin/ prefix)
+# Configure lighttpd: set document root, index file, PID location, and CGI
+RUN sed -i 's|^server.document-root.*|server.document-root = "/usr/lib/cgi-bin/nut"|' /etc/lighttpd/lighttpd.conf && \
+    sed -i 's|^index-file.names.*|index-file.names = ( "upsstats.cgi" )|' /etc/lighttpd/lighttpd.conf && \
+    sed -i 's|^server.pid-file.*|server.pid-file = "/tmp/lighttpd.pid"|' /etc/lighttpd/lighttpd.conf && \
+    # Ensure mod_cgi.conf is included (uncomment if needed)
+    sed -i 's|^#.*\(include.*mod_cgi.conf.*\)|\1|' /etc/lighttpd/lighttpd.conf && \
+    # Add CGI configuration
     echo '' >> /etc/lighttpd/lighttpd.conf && \
     echo '# CGI configuration for nut' >> /etc/lighttpd/lighttpd.conf && \
     echo 'cgi.assign = ( ".cgi" => "" )' >> /etc/lighttpd/lighttpd.conf
