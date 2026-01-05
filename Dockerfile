@@ -44,7 +44,12 @@ RUN ./configure \
     --with-user=nut \
     --with-group=nut && \
     make && \
-    make install DESTDIR=/build/rootfs
+    make install DESTDIR=/build/rootfs && \
+    # Copy sample HTML templates (not installed by default)
+    cp conf/upsstats.html.sample /build/rootfs/usr/share/nut/html/upsstats.html && \
+    cp conf/upsstats-single.html.sample /build/rootfs/usr/share/nut/html/upsstats-single.html && \
+    cp conf/upsset.html.sample /build/rootfs/usr/share/nut/html/upsset.html 2>/dev/null || true && \
+    cp conf/upsimage.html.sample /build/rootfs/usr/share/nut/html/upsimage.html 2>/dev/null || true
 
 # ============================================================================
 # Runtime Stage - Minimal footprint with pinned versions
