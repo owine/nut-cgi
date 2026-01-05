@@ -4,7 +4,7 @@ on:
   workflow_run:
     workflows: ["Build and Push Multi-Arch Image"]
     types: [completed]
-    branches: [main]
+    branches: [master]
   # Weekly scheduled scan
   schedule:
     - cron: '0 0 * * 1'  # Monday at 00:00 UTC
