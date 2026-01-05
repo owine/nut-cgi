@@ -1,0 +1,69 @@
+{
+  "$schema": "https://docs.renovatebot.com/renovate-schema.json",
+  "extends": [
+    "config:base"
+  ],
+  "timezone": "America/New_York",
+  "schedule": [
+    "before 3am on Monday"
+  ],
+  "semanticCommits": "enabled",
+  "commitMessagePrefix": "chore(deps):",
+  "packageRules": [
+    {
+      "description": "Alpine base image - auto-merge patch and digest updates",
+      "matchDatasources": ["docker"],
+      "matchPackageNames": ["alpine"],
+      "groupName": "alpine base image",
+      "automerge": true,
+      "automergeType": "pr",
+      "matchUpdateTypes": ["patch", "digest"]
+    },
+    {
+      "description": "NUT source version - track GitHub releases",
+      "matchManagers": ["regex"],
+      "matchStrings": [
+        "ARG NUT_VERSION=(?<currentValue>.*?)\\n"
+      ],
+      "datasourceTemplate": "github-releases",
+      "depNameTemplate": "networkupstools/nut",
+      "extractVersionTemplate": "^v(?<version>.*)$",
+      "groupName": "nut source",
+      "automerge": false
+    },
+    {
+      "description": "Alpine packages - track with regex manager",
+      "matchManagers": ["regex"],
+      "matchStrings": [
+        "lighttpd=(?<currentValue>.*?)\\s",
+        "curl=(?<currentValue>.*?)\\s",
+        "libusb=(?<currentValue>.*?)\\s",
+        "neon=(?<currentValue>.*?)\\s",
+        "net-snmp-libs=(?<currentValue>.*?)\\s",
+        "openssl=(?<currentValue>.*?)\\s",
+        "libmodbus=(?<currentValue>.*?)\\s",
+        "gd=(?<currentValue>.*?)\\s"
+      ],
+      "datasourceTemplate": "repology",
+      "depNameTemplate": "alpine_3_23/{{{packageName}}}",
+      "groupName": "alpine packages",
+      "automerge": true,
+      "matchUpdateTypes": ["patch"]
+    },
+    {
+      "description": "GitHub Actions - group and auto-merge minor/patch",
+      "matchManagers": ["github-actions"],
+      "groupName": "github actions",
+      "automerge": true,
+      "automergeType": "pr",
+      "matchUpdateTypes": ["patch", "minor"]
+    }
+  ],
+  "vulnerabilityAlerts": {
+    "enabled": true,
+    "labels": ["security"],
+    "assignees": ["owine"]
+  },
+  "prConcurrentLimit": 5,
+  "prHourlyLimit": 2
+}
