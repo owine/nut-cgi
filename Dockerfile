@@ -12,11 +12,6 @@ RUN apk add --no-cache \
     automake \
     libtool \
     pkgconfig \
-    libusb-dev \
-    neon-dev \
-    net-snmp-dev \
-    openssl-dev \
-    libmodbus-dev \
     gd-dev \
     curl
 
@@ -34,13 +29,7 @@ RUN ./configure \
     --with-cgi \
     --with-cgibindir=/usr/lib/cgi-bin/nut \
     --with-htmlpath=/usr/share/nut/html \
-    --with-dev \
-    --with-serial \
-    --with-usb \
-    --with-snmp \
-    --with-neon \
-    --with-ssl \
-    --with-openssl \
+    --with-all=no \
     --datadir=/usr/share/nut \
     --with-user=nut \
     --with-group=nut && \
@@ -68,11 +57,7 @@ LABEL org.opencontainers.image.title="nut-cgi" \
 RUN apk add --no-cache \
     lighttpd=1.4.82-r0 \
     curl=8.17.0-r1 \
-    libusb=1.0.29-r0 \
-    neon=0.35.0-r0 \
-    net-snmp-libs=5.9.4-r2 \
     openssl=3.5.4-r0 \
-    libmodbus=3.1.10-r0 \
     gd=2.3.3-r10 && \
     # Verify installations
     lighttpd -v && \
