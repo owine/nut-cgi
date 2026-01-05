@@ -9,6 +9,9 @@
   ],
   "semanticCommits": "enabled",
   "commitMessagePrefix": "chore(deps):",
+  "ignorePaths": [
+    "docker-compose.yml"
+  ],
   "customManagers": [
     {
       "customType": "regex",
