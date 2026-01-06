@@ -22,9 +22,25 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - `CHANGELOG.md` (this file) following Keep a Changelog format
 - Enhanced Renovate configuration with better commit messages and descriptions
 - Dynamic Alpine package version tracking in Renovate
+- Comprehensive functional testing suite in CI/CD pipeline
+  - Container health verification
+  - Web server response testing
+  - HTTP headers validation
+  - CGI execution testing
+  - Health check script testing (basic and strict modes)
+  - Non-root user verification
+  - Read-only filesystem compatibility testing
 
 ### Changed
 
+- CI/CD workflow restructured to build-test-promote pattern
+  - Build creates `sha-<commit>` tag only
+  - Functional testing and security scanning run in parallel on same image
+  - Image promotion with additional tags only occurs after all tests pass
+- Docker image tagging strategy:
+  - `:main` tag now represents latest tested main branch build (previously `:latest`)
+  - `:latest` tag now represents latest tested release only
+  - `:sha-<commit>` tags are now documented (for debugging/pinning)
 - docker-compose.yml now includes `HEALTHCHECK_MODE` environment variable documentation
 
 ### Fixed

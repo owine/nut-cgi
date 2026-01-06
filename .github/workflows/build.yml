@@ -1,5 +1,5 @@
 ---
-name: Build and Push Multi-Arch Image
+name: Build, Test, and Publish
 
 "on":
   push:
@@ -23,11 +23,15 @@ permissions:
   contents: read
   packages: write
   id-token: write
+  security-events: write
 
 jobs:
   build:
-    name: Build and Push
+    name: Build Multi-Arch Image
     runs-on: ubuntu-24.04
+    outputs:
+      image-sha-tag: ${{ steps.meta.outputs.tags }}
+      image-digest: ${{ steps.build.outputs.digest }}
     steps:
       - name: Checkout code
         uses: actions/checkout@8e8c483db84b4bee98b60c0593521ed34d9990e8 # v6.0.1
@@ -46,24 +50,14 @@ jobs:
           username: ${{ github.actor }}
           password: ${{ secrets.GITHUB_TOKEN }}
 
-      - name: Extract metadata (tags, labels)
+      - name: Generate SHA tag
         id: meta
         uses: docker/metadata-action@c299e40c65443455700f0fdfc63efafe5b349051 # v5.10.0
         with:
           images: ${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}
           tags: |
-            # Tag with version for releases
-            type=semver,pattern={{version}}
-            type=semver,pattern={{major}}.{{minor}}
-            type=semver,pattern={{major}}
-            # Tag with branch name
-            type=ref,event=branch
-            # Tag with pr number
-            type=ref,event=pr
-            # Tag with sha
+            # Build with SHA tag only - promote later after testing
             type=sha,prefix=sha-
-            # Tag latest for main branch
-            type=raw,value=latest,enable={{is_default_branch}}
 
       - name: Build and push Docker image
         id: build
@@ -81,29 +75,34 @@ jobs:
           sbom: true
           no-cache: ${{ github.event.inputs.force-rebuild == 'true' }}
 
-      - name: Image digest
-        run: echo "Image pushed with digest ${{ steps.build.outputs.digest }}"
+      - name: Image built
+        run: |
+          echo "Image built and tagged: ${{ steps.meta.outputs.tags }}"
+          echo "Image digest: ${{ steps.build.outputs.digest }}"
 
   test:
     name: Functional Testing
     runs-on: ubuntu-24.04
     needs: build
-    if: github.event_name == 'pull_request' || github.event_name == 'push'
+    if: github.event_name != 'pull_request'
     steps:
       - name: Checkout code
         uses: actions/checkout@8e8c483db84b4bee98b60c0593521ed34d9990e8 # v6.0.1
 
-      - name: Set up Docker Buildx
-        uses: docker/setup-buildx-action@8d2750c68a42422c14e847fe6c8ac0403b4cbd6f # v3.12.0
-
-      - name: Build test image
-        uses: docker/build-push-action@263435318d21b8e681c14492fe198d362a7d2c83 # v6.18.0
+      - name: Log in to GitHub Container Registry
+        uses: docker/login-action@5e57cd118135c172c3672efd75eb46360885c0ef # v3.6.0
         with:
-          context: .
-          file: ./Dockerfile
-          load: true
-          tags: nut-cgi:test
-          cache-from: type=gha
+          registry: ${{ env.REGISTRY }}
+          username: ${{ github.actor }}
+          password: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Pull built image
+        run: |
+          IMAGE_TAG="${{ needs.build.outputs.image-sha-tag }}"
+          echo "Pulling image: $IMAGE_TAG"
+          docker pull "$IMAGE_TAG"
+          # Tag locally for testing
+          docker tag "$IMAGE_TAG" nut-cgi:test
 
       - name: Create test hosts.conf
         run: |
@@ -230,3 +229,120 @@ jobs:
         run: |
           docker rm -f nut-cgi-test || true
           rm -f hosts.conf
+
+  scan:
+    name: Security Scan
+    runs-on: ubuntu-24.04
+    needs: build
+    if: github.event_name != 'pull_request'
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@8e8c483db84b4bee98b60c0593521ed34d9990e8 # v6.0.1
+
+      - name: Log in to GitHub Container Registry
+        uses: docker/login-action@5e57cd118135c172c3672efd75eb46360885c0ef # v3.6.0
+        with:
+          registry: ${{ env.REGISTRY }}
+          username: ${{ github.actor }}
+          password: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Pull built image
+        run: |
+          IMAGE_TAG="${{ needs.build.outputs.image-sha-tag }}"
+          echo "Pulling image for scanning: $IMAGE_TAG"
+          docker pull "$IMAGE_TAG"
+
+      - name: Run Trivy vulnerability scanner
+        uses: aquasecurity/trivy-action@b6643a29fecd7f34b3597bc6acb0a98b03d33ff8 # 0.33.1
+        with:
+          image-ref: ${{ needs.build.outputs.image-sha-tag }}
+          format: 'sarif'
+          output: 'trivy-results.sarif'
+          severity: 'HIGH,CRITICAL'
+          exit-code: '1'
+
+      - name: Upload Trivy results to GitHub Security
+        if: always()
+        uses: github/codeql-action/upload-sarif@5d4e8d1aca955e8d8589aabd499c5cae939e33c7 # v4.31.9
+        with:
+          sarif_file: 'trivy-results.sarif'
+
+      - name: Run Trivy for human-readable output
+        if: always()
+        uses: aquasecurity/trivy-action@b6643a29fecd7f34b3597bc6acb0a98b03d33ff8 # 0.33.1
+        with:
+          image-ref: ${{ needs.build.outputs.image-sha-tag }}
+          format: 'table'
+          severity: 'HIGH,CRITICAL'
+
+  promote:
+    name: Tag and Promote Image
+    runs-on: ubuntu-24.04
+    needs: [build, test, scan]
+    if: |
+      github.event_name != 'pull_request' &&
+      needs.test.result == 'success' &&
+      needs.scan.result == 'success'
+    steps:
+      - name: Log in to GitHub Container Registry
+        uses: docker/login-action@5e57cd118135c172c3672efd75eb46360885c0ef # v3.6.0
+        with:
+          registry: ${{ env.REGISTRY }}
+          username: ${{ github.actor }}
+          password: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Determine promotion tags
+        id: tags
+        run: |
+          SOURCE_TAG="${{ needs.build.outputs.image-sha-tag }}"
+          TAGS=""
+
+          # Add :main tag for pushes to main branch
+          if [ "${{ github.ref }}" = "refs/heads/main" ]; then
+            TAGS="$TAGS ${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}:main"
+          fi
+
+          # Add release tags for version tags
+          if [[ "${{ github.ref }}" == refs/tags/v*.*.* ]]; then
+            VERSION="${{ github.ref_name }}"
+            # Remove 'v' prefix
+            VERSION_NO_V="${VERSION#v}"
+
+            # Extract version components
+            MAJOR=$(echo "$VERSION_NO_V" | cut -d. -f1)
+            MINOR=$(echo "$VERSION_NO_V" | cut -d. -f2)
+
+            # Add all version tags
+            TAGS="$TAGS ${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}:latest"
+            TAGS="$TAGS ${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}:$VERSION"
+            TAGS="$TAGS ${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}:v$MAJOR.$MINOR"
+            TAGS="$TAGS ${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}:v$MAJOR"
+          fi
+
+          echo "SOURCE_TAG=$SOURCE_TAG" >> "$GITHUB_OUTPUT"
+          echo "PROMOTION_TAGS=$TAGS" >> "$GITHUB_OUTPUT"
+
+          echo "Will promote:"
+          echo "  From: $SOURCE_TAG"
+          echo "  To: $TAGS"
+
+      - name: Promote image with additional tags
+        if: steps.tags.outputs.PROMOTION_TAGS != ''
+        run: |
+          SOURCE="${{ steps.tags.outputs.SOURCE_TAG }}"
+
+          # Use docker buildx imagetools create to add tags (fast, no rebuild)
+          for TAG in ${{ steps.tags.outputs.PROMOTION_TAGS }}; do
+            echo "Promoting $SOURCE -> $TAG"
+            docker buildx imagetools create --tag "$TAG" "$SOURCE"
+          done
+
+      - name: Promotion complete
+        run: |
+          echo "✅ Image promotion successful"
+          echo "SHA tag: ${{ needs.build.outputs.image-sha-tag }}"
+          if [ -n "${{ steps.tags.outputs.PROMOTION_TAGS }}" ]; then
+            echo "Promoted to: ${{ steps.tags.outputs.PROMOTION_TAGS }}"
+          else
+            echo "No additional tags applied"
+          fi

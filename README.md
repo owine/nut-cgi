@@ -1,6 +1,7 @@
 # nut-cgi
 
-Lightweight Docker image for [Network UPS Tools (NUT)](https://networkupstools.org/) CGI web interface, built on Alpine Linux with security hardening and multi-architecture support.
+Lightweight Docker image for [Network UPS Tools (NUT)](https://networkupstools.org/) CGI web interface,
+built on Alpine Linux with security hardening and multi-architecture support.
 
 ## Features
 
@@ -108,11 +109,12 @@ docker pull ghcr.io/owine/nut-cgi:v1
 ```
 
 **Available tags:**
-- `latest` - Latest build from main branch
-- `v1.0.0` - Specific semantic version
-- `v1.0` - Latest patch in v1.0.x series
-- `v1` - Latest minor in v1.x series
-- `sha-<commit>` - Specific commit build
+- `:latest` - Latest tested release (recommended for production)
+- `:v1.0.0` - Specific semantic version (exact version pinning)
+- `:v1.0` - Latest patch in v1.0.x series
+- `:v1` - Latest minor in v1.x series
+- `:main` - Latest tested build from main branch (passes all tests)
+- `:sha-<commit>` - Specific commit build (for debugging/pinning)
 
 ## Architecture
 
