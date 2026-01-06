@@ -4,9 +4,6 @@
     "config:best-practices"
   ],
   "timezone": "America/Chicago",
-  "_schedule_disabled_temporarily": [
-    "before 3am on Monday"
-  ],
   "semanticCommits": "enabled",
   "commitMessagePrefix": "chore(deps):",
   "commitBody": "Update {{depName}} from {{currentVersion}} to {{newVersion}}\n\n{{#if releases}}Release notes:\n{{#each releases}}- {{#if title}}{{title}}{{else}}{{version}}{{/if}}\n{{/each}}{{/if}}",
