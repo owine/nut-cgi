@@ -117,18 +117,18 @@ jobs:
           docker run -d \
             --name nut-cgi-test \
             -p 8080:80 \
-            -v $(pwd)/hosts.conf:/etc/nut/hosts.conf:ro \
+            -v "$(pwd)/hosts.conf:/etc/nut/hosts.conf:ro" \
             nut-cgi:test
 
       - name: Wait for container startup
         run: |
           echo "Waiting for container to be healthy..."
-          timeout 30 sh -c '
-            until [ "$(docker inspect -f {{.State.Health.Status}} nut-cgi-test)" = "healthy" ]; do
-              echo "Container status: $(docker inspect -f {{.State.Health.Status}} nut-cgi-test)"
+          timeout 30 sh -c "
+            until [ \"\$(docker inspect -f {{.State.Health.Status}} nut-cgi-test)\" = \"healthy\" ]; do
+              echo \"Container status: \$(docker inspect -f {{.State.Health.Status}} nut-cgi-test)\"
               sleep 2
             done
-          '
+          "
 
       - name: Verify container health
         run: |
@@ -207,7 +207,7 @@ jobs:
             --read-only \
             --tmpfs /tmp \
             -p 8080:80 \
-            -v $(pwd)/hosts.conf:/etc/nut/hosts.conf:ro \
+            -v "$(pwd)/hosts.conf:/etc/nut/hosts.conf:ro" \
             nut-cgi:test
 
           # Wait for startup
