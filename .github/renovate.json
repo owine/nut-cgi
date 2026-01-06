@@ -4,7 +4,7 @@
     "config:best-practices"
   ],
   "timezone": "America/Chicago",
-  "schedule": [
+  "_schedule_disabled_temporarily": [
     "before 3am on Monday"
   ],
   "semanticCommits": "enabled",
