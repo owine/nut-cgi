@@ -32,16 +32,6 @@
       "datasourceTemplate": "repology",
       "depNameTemplate": "alpine_3_23/{{{depName}}}",
       "versioningTemplate": "loose"
-    },
-    {
-      "customType": "regex",
-      "description": "Track Alpine base image version in FROM statements",
-      "managerFilePatterns": ["Dockerfile"],
-      "matchStrings": [
-        "FROM alpine:(?<currentValue>\\d+\\.\\d+\\.\\d+)@"
-      ],
-      "datasourceTemplate": "docker",
-      "depNameTemplate": "alpine"
     }
   ],
   "packageRules": [
