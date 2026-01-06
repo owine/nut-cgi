@@ -7,6 +7,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [1.2.0] - 2026-01-06
+
 ### Added
 
 - Enhanced health check with multi-tier validation (5 tiers)
@@ -46,6 +48,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ### Fixed
 
 - Renovate repology configuration for Alpine 3.23 package tracking
+- Renovate custom manager conflict with native Dockerfile manager for Alpine base image
 
 ## [1.1.2] - 2026-01-06
 
