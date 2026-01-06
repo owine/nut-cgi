@@ -9,15 +9,17 @@
   ],
   "semanticCommits": "enabled",
   "commitMessagePrefix": "chore(deps):",
+  "commitBody": "Update {{depName}} from {{currentVersion}} to {{newVersion}}\n\n{{#if releases}}Release notes:\n{{#each releases}}- {{#if title}}{{title}}{{else}}{{version}}{{/if}}\n{{/each}}{{/if}}",
   "ignorePaths": [
     "docker-compose.yml"
   ],
   "customManagers": [
     {
       "customType": "regex",
+      "description": "Track NUT (Network UPS Tools) releases from GitHub",
       "managerFilePatterns": ["Dockerfile"],
       "matchStrings": [
-        "ARG NUT_VERSION=(?<currentValue>.*?)\\n"
+        "# NUT version to build from source\\s+ARG NUT_VERSION=(?<currentValue>.*?)\\n"
       ],
       "datasourceTemplate": "github-releases",
       "depNameTemplate": "networkupstools/nut",
@@ -25,12 +27,24 @@
     },
     {
       "customType": "regex",
+      "description": "Track Alpine 3.23 APK package versions via Repology",
       "managerFilePatterns": ["Dockerfile"],
       "matchStrings": [
         "(?<depName>lighttpd|curl|openssl|gd|build-base|autoconf|automake|libtool|pkgconf|gd-dev)=(?<currentValue>[^\\s]+)"
       ],
       "datasourceTemplate": "repology",
-      "depNameTemplate": "alpine_3_23/{{{depName}}}"
+      "depNameTemplate": "alpine_3_23/{{{depName}}}",
+      "versioningTemplate": "loose"
+    },
+    {
+      "customType": "regex",
+      "description": "Track Alpine base image version in FROM statements",
+      "managerFilePatterns": ["Dockerfile"],
+      "matchStrings": [
+        "FROM alpine:(?<currentValue>\\d+\\.\\d+\\.\\d+)@"
+      ],
+      "datasourceTemplate": "docker",
+      "depNameTemplate": "alpine"
     }
   ],
   "packageRules": [
@@ -62,7 +76,7 @@
       "automerge": false
     },
     {
-      "description": "Alpine APK packages - auto-merge patch updates",
+      "description": "Alpine APK packages - auto-merge patch updates (NOTE: When upgrading Alpine base to 3.24+, update repology depNameTemplate in customManagers)",
       "matchDatasources": [
         "repology"
       ],

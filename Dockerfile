@@ -29,11 +29,19 @@ RUN ./configure \
     --with-cgibindir=/usr/lib/cgi-bin/nut \
     --with-htmlpath=/usr/share/nut/html \
     --with-all=no \
+    --without-ssl \
+    --without-nss \
+    --without-openssl \
+    --disable-static \
     --datadir=/usr/share/nut \
     --with-user=nut \
     --with-group=nut && \
-    make && \
+    # Parallel compilation for faster builds
+    make -j"$(nproc)" && \
     make install DESTDIR=/build/rootfs && \
+    # Strip debug symbols from binaries for smaller image
+    find /build/rootfs/usr/lib -name '*.so*' -type f -exec strip --strip-unneeded {} \; 2>/dev/null || true && \
+    find /build/rootfs/usr/lib/cgi-bin -type f -exec strip --strip-unneeded {} \; 2>/dev/null || true && \
     # Copy sample HTML templates to /etc/nut (where CGI programs expect them)
     cp /build/rootfs/etc/nut/upsstats.html.sample /build/rootfs/etc/nut/upsstats.html && \
     cp /build/rootfs/etc/nut/upsstats-single.html.sample /build/rootfs/etc/nut/upsstats-single.html && \
@@ -88,7 +96,14 @@ RUN sed -i 's|^server.document-root.*|server.document-root = "/usr/lib/cgi-bin/n
     # Add CGI configuration
     echo '' >> /etc/lighttpd/lighttpd.conf && \
     echo '# CGI configuration for nut' >> /etc/lighttpd/lighttpd.conf && \
-    echo 'cgi.assign = ( ".cgi" => "" )' >> /etc/lighttpd/lighttpd.conf
+    echo 'cgi.assign = ( ".cgi" => "" )' >> /etc/lighttpd/lighttpd.conf && \
+    # Performance tuning for resource-constrained environments
+    echo '' >> /etc/lighttpd/lighttpd.conf && \
+    echo '# Performance tuning for CGI workload' >> /etc/lighttpd/lighttpd.conf && \
+    echo 'server.max-connections = 16    # Limit concurrent connections (default: 1024)' >> /etc/lighttpd/lighttpd.conf && \
+    echo 'server.max-keep-alive-requests = 4  # Keep-alive requests per connection' >> /etc/lighttpd/lighttpd.conf && \
+    echo 'server.max-worker = 2          # Worker processes for CGI (default: 4)' >> /etc/lighttpd/lighttpd.conf && \
+    echo 'server.max-fds = 128           # Max file descriptors (default: 1024)' >> /etc/lighttpd/lighttpd.conf
 
 # Make NUT config directory world-readable for --user UID override compatibility
 RUN chmod 755 /etc/nut && \

@@ -15,6 +15,13 @@ services:
     tmpfs:
       - /tmp
 
+    # Environment variables
+    environment:
+      # Health check mode: 'basic' (default) or 'strict'
+      # basic  = Validate infrastructure only (web server + CGI)
+      # strict = Validate infrastructure + UPS connectivity
+      - HEALTHCHECK_MODE=basic
+
     # Mount your hosts.conf configuration
     volumes:
       - ./hosts.conf:/etc/nut/hosts.conf:ro

@@ -52,7 +52,21 @@ MONITOR officeups@192.168.1.101 "Office UPS"
 
 **File location:** `/etc/nut/hosts.conf` inside container
 
+See [`hosts.conf.example`](hosts.conf.example) for comprehensive examples and configuration tips.
+
 For complete `hosts.conf` syntax, see [NUT documentation](https://networkupstools.org/docs/man/hosts.conf.html).
+
+### Health Check Modes
+
+The container supports two health check modes via the `HEALTHCHECK_MODE` environment variable:
+
+- **`basic`** (default): Validates infrastructure only (web server + CGI execution)
+- **`strict`**: Validates infrastructure + UPS connectivity (fails if no UPS reachable)
+
+```yaml
+environment:
+  - HEALTHCHECK_MODE=strict  # Require UPS connectivity for healthy status
+```
 
 ## Advanced Usage
 
@@ -220,7 +234,17 @@ All PRs must pass linting and build workflows.
 - [Network UPS Tools (NUT)](https://networkupstools.org/)
 - [Alpine Linux](https://alpinelinux.org/)
 
+## Documentation
+
+- **[CHANGELOG.md](CHANGELOG.md)** - Version history and release notes
+- **[SECURITY.md](SECURITY.md)** - Security policy and vulnerability reporting
+- **[CLAUDE.md](CLAUDE.md)** - Development guide and architectural decisions
+- **[hosts.conf.example](hosts.conf.example)** - Configuration examples
+- **[docs/BUILD_OPTIMIZATION.md](docs/BUILD_OPTIMIZATION.md)** - Multi-architecture build optimization guide
+
 ## Links
 
 - **GitHub:** https://github.com/owine/nut-cgi
 - **Container Registry:** https://github.com/owine/nut-cgi/pkgs/container/nut-cgi
+- **Issue Tracker:** https://github.com/owine/nut-cgi/issues
+- **Security Advisories:** https://github.com/owine/nut-cgi/security/advisories

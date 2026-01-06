@@ -1,0 +1,61 @@
+# Network UPS Tools (NUT) hosts.conf - Example Configuration
+#
+# This file defines which UPS systems the nut-cgi web interface monitors.
+# Copy this file to hosts.conf and customize for your environment.
+#
+# Format: MONITOR <upsname>@<hostname>[:<port>] "<description>"
+#
+# Documentation: https://networkupstools.org/docs/man/hosts.conf.html
+
+# ============================================================================
+# Local UPS Systems
+# ============================================================================
+# Monitor UPS connected to the local machine (if running upsd locally)
+MONITOR myups@localhost "Local UPS"
+
+# ============================================================================
+# Remote UPS Systems (Common Scenarios)
+# ============================================================================
+# Basic remote monitoring (default NUT port 3493)
+MONITOR serverups@192.168.1.100 "Server Rack UPS"
+MONITOR officeups@192.168.1.101 "Office UPS"
+
+# Custom port (if upsd runs on non-standard port)
+MONITOR nas-ups@192.168.1.50:3494 "NAS UPS (Custom Port)"
+
+# Hostname-based monitoring (if DNS is configured)
+MONITOR datacenter@ups-server.local "Data Center UPS"
+
+# ============================================================================
+# Multiple UPS Systems from Same Host
+# ============================================================================
+# When one server manages multiple physical UPS units
+MONITOR ups1@192.168.1.200 "Rack 1 - APC Smart-UPS 1500"
+MONITOR ups2@192.168.1.200 "Rack 2 - CyberPower 1000VA"
+MONITOR ups3@192.168.1.200 "Network Equipment UPS"
+
+# ============================================================================
+# Edge Cases and Advanced Examples
+# ============================================================================
+# IPv6 address (enclose in brackets)
+# MONITOR homeups@[2001:db8::1] "IPv6 UPS Monitor"
+
+# Long descriptive names (useful for large deployments)
+# MONITOR dc1-row3-rack5@10.0.50.100 "DC1 Row 3 Rack 5 - Primary Power"
+
+# ============================================================================
+# Configuration Tips
+# ============================================================================
+# 1. Test connectivity: upsc <upsname>@<hostname> (from NUT client tools)
+# 2. Verify upsd is running on target hosts
+# 3. Ensure firewall allows port 3493 (or your custom port)
+# 4. Use descriptive names for easier identification in web interface
+# 5. Group related UPS systems together for better organization
+
+# ============================================================================
+# Deployment Example for Docker
+# ============================================================================
+# 1. Copy this file: cp hosts.conf.example hosts.conf
+# 2. Edit hosts.conf with your UPS systems
+# 3. Mount in container: -v $(pwd)/hosts.conf:/etc/nut/hosts.conf:ro
+# 4. Access web interface: http://localhost:8000

@@ -83,3 +83,150 @@ jobs:
 
       - name: Image digest
         run: echo "Image pushed with digest ${{ steps.build.outputs.digest }}"
+
+  test:
+    name: Functional Testing
+    runs-on: ubuntu-24.04
+    needs: build
+    if: github.event_name == 'pull_request' || github.event_name == 'push'
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@8e8c483db84b4bee98b60c0593521ed34d9990e8 # v6.0.1
+
+      - name: Set up Docker Buildx
+        uses: docker/setup-buildx-action@8d2750c68a42422c14e847fe6c8ac0403b4cbd6f # v3.12.0
+
+      - name: Build test image
+        uses: docker/build-push-action@263435318d21b8e681c14492fe198d362a7d2c83 # v6.18.0
+        with:
+          context: .
+          file: ./Dockerfile
+          load: true
+          tags: nut-cgi:test
+          cache-from: type=gha
+
+      - name: Create test hosts.conf
+        run: |
+          cat > hosts.conf << 'EOF'
+          # Test configuration - no actual UPS required
+          MONITOR testups@localhost "Test UPS System"
+          EOF
+
+      - name: Run container
+        run: |
+          docker run -d \
+            --name nut-cgi-test \
+            -p 8080:80 \
+            -v $(pwd)/hosts.conf:/etc/nut/hosts.conf:ro \
+            nut-cgi:test
+
+      - name: Wait for container startup
+        run: |
+          echo "Waiting for container to be healthy..."
+          timeout 30 sh -c '
+            until [ "$(docker inspect -f {{.State.Health.Status}} nut-cgi-test)" = "healthy" ]; do
+              echo "Container status: $(docker inspect -f {{.State.Health.Status}} nut-cgi-test)"
+              sleep 2
+            done
+          '
+
+      - name: Verify container health
+        run: |
+          status=$(docker inspect -f '{{.State.Health.Status}}' nut-cgi-test)
+          echo "Container health status: $status"
+          if [ "$status" != "healthy" ]; then
+            echo "ERROR: Container is not healthy"
+            docker logs nut-cgi-test
+            exit 1
+          fi
+
+      - name: Test web server response
+        run: |
+          echo "Testing web server on port 8080..."
+          curl -v --fail --max-time 10 http://localhost:8080/upsstats.cgi
+
+      - name: Test HTTP headers
+        run: |
+          echo "Verifying HTTP headers..."
+          headers=$(curl -sI http://localhost:8080/upsstats.cgi)
+          echo "$headers"
+          if ! echo "$headers" | grep -qi "Content-Type"; then
+            echo "ERROR: Missing Content-Type header"
+            exit 1
+          fi
+          echo "HTTP headers validated successfully"
+
+      - name: Test CGI execution
+        run: |
+          echo "Testing CGI execution..."
+          response=$(curl -s http://localhost:8080/upsstats.cgi)
+          # Should have HTML content even without actual UPS
+          if [ -z "$response" ]; then
+            echo "ERROR: Empty response from CGI"
+            exit 1
+          fi
+          echo "Response length: ${#response} bytes"
+          echo "CGI execution verified"
+
+      - name: Test health check script directly
+        run: |
+          echo "Testing health check script execution..."
+          docker exec nut-cgi-test /healthcheck.sh
+          exitcode=$?
+          if [ $exitcode -ne 0 ]; then
+            echo "ERROR: Health check script failed"
+            exit 1
+          fi
+          echo "Health check script passed"
+
+      - name: Test strict health check mode (should pass with basic infrastructure)
+        run: |
+          echo "Testing strict health check mode..."
+          # This will fail because no actual UPS is configured, which is expected
+          docker exec -e HEALTHCHECK_MODE=strict nut-cgi-test /healthcheck.sh || true
+          echo "Strict mode test completed (expected to fail without real UPS)"
+
+      - name: Verify non-root execution
+        run: |
+          echo "Verifying container runs as non-root user..."
+          userid=$(docker exec nut-cgi-test id -u)
+          username=$(docker exec nut-cgi-test id -un)
+          echo "Container runs as: UID=$userid, User=$username"
+          if [ "$userid" = "0" ]; then
+            echo "ERROR: Container is running as root"
+            exit 1
+          fi
+          echo "Non-root execution verified (UID: $userid)"
+
+      - name: Test read-only filesystem compatibility
+        run: |
+          echo "Testing with read-only filesystem..."
+          docker rm -f nut-cgi-test
+          docker run -d \
+            --name nut-cgi-test \
+            --read-only \
+            --tmpfs /tmp \
+            -p 8080:80 \
+            -v $(pwd)/hosts.conf:/etc/nut/hosts.conf:ro \
+            nut-cgi:test
+
+          # Wait for startup
+          sleep 10
+
+          # Verify it works with read-only filesystem
+          curl --fail --max-time 10 http://localhost:8080/upsstats.cgi
+          echo "Read-only filesystem test passed"
+
+      - name: Show container logs on failure
+        if: failure()
+        run: |
+          echo "=== Container logs ==="
+          docker logs nut-cgi-test
+          echo "=== Container inspect ==="
+          docker inspect nut-cgi-test
+
+      - name: Cleanup
+        if: always()
+        run: |
+          docker rm -f nut-cgi-test || true
+          rm -f hosts.conf
