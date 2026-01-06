@@ -73,18 +73,16 @@ COPY --from=builder /build/rootfs/etc/nut /etc/nut
 RUN addgroup -g 1000 nut && \
     adduser -D -u 1000 -G nut -h /home/nut nut
 
-# Configure lighttpd for non-root operation and arbitrary UID support
-RUN mkdir -p /var/log/lighttpd /var/lib/lighttpd && \
-    # Make directories accessible by any UID (for --user override)
-    chown -R nut:nut /var/log/lighttpd /var/lib/lighttpd && \
-    chmod 755 /var/log/lighttpd /var/lib/lighttpd && \
-    # Disable default unconfigured site
-    rm -f /etc/lighttpd/conf.d/*-unconfigured.conf
+# Disable default unconfigured site
+RUN rm -f /etc/lighttpd/conf.d/*-unconfigured.conf
 
-# Configure lighttpd: set document root, index file, PID location, and CGI
+# Configure lighttpd: set document root, index file, PID location, logging, and CGI
 RUN sed -i 's|^server.document-root.*|server.document-root = "/usr/lib/cgi-bin/nut"|' /etc/lighttpd/lighttpd.conf && \
     sed -i 's|^index-file.names.*|index-file.names = ( "upsstats.cgi" )|' /etc/lighttpd/lighttpd.conf && \
     sed -i 's|^server.pid-file.*|server.pid-file = "/tmp/lighttpd.pid"|' /etc/lighttpd/lighttpd.conf && \
+    # Configure logging to stderr/stdout (Docker/read-only filesystem compatible)
+    sed -i 's|^server.errorlog.*|server.errorlog = "/dev/stderr"|' /etc/lighttpd/lighttpd.conf && \
+    sed -i 's|^accesslog.filename.*|accesslog.filename = "/dev/stdout"|' /etc/lighttpd/lighttpd.conf && \
     # Ensure mod_cgi.conf is included (uncomment if needed)
     sed -i 's|^#.*\(include.*mod_cgi.conf.*\)|\1|' /etc/lighttpd/lighttpd.conf && \
     # Add CGI configuration
