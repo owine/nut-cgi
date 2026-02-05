@@ -64,7 +64,7 @@ LABEL org.opencontainers.image.title="nut-cgi" \
 RUN apk add --no-cache \
     lighttpd=1.4.82-r0 \
     curl=8.17.0-r1 \
-    openssl=3.5.4-r0 \
+    openssl=3.5.5-r0 \
     gd=2.3.3-r10 && \
     # Verify installations
     lighttpd -v && \
