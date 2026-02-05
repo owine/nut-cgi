@@ -5,7 +5,7 @@
   ],
   "timezone": "America/Chicago",
   "schedule": [
-    "before 3am on Monday"
+    "before 8am on Monday"
   ],
   "semanticCommits": "enabled",
   "commitMessagePrefix": "chore(deps):",
@@ -101,7 +101,5 @@
     "assignees": [
       "owine"
     ]
-  },
-  "prConcurrentLimit": 5,
-  "prHourlyLimit": 2
+  }
 }
