@@ -7,6 +7,53 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [1.3.0] - 2026-02-07
+
+### Added
+
+- Source checksum verification for NUT tarball downloads (C1)
+  - Downloads `.sha256` file from NUT GitHub release and verifies with `sha256sum -c`
+  - Checksum URL auto-updates when Renovate bumps `NUT_VERSION`
+  - Build fails immediately on integrity violation
+- Security response headers via lighttpd `mod_setenv` (H3)
+  - `X-Content-Type-Options: nosniff`
+  - `X-Frame-Options: DENY`
+  - `Referrer-Policy: no-referrer`
+  - `Content-Security-Policy: default-src 'self'; img-src 'self' data:; style-src 'self' 'unsafe-inline'`
+- `upsset.cgi` blocked by default via lighttpd URL access-deny rule (H1)
+  - Prevents unauthorized UPS configuration changes (shutdown, battery tests)
+  - Override with `ENABLE_UPSSET=true` environment variable when behind authenticated reverse proxy
+- `entrypoint.sh` for runtime configuration of `upsset.cgi` access
+  - Read-only filesystem compatible (writes modified config to `/tmp`)
+  - Uses `exec` for proper PID 1 signal handling
+- CI test steps for security header verification and `upsset.cgi` blocking
+- Reverse proxy deployment notes on Dockerfile `EXPOSE` and docker-compose.yml
+
+### Changed
+
+- CI/CD permissions scoped per-job instead of workflow-level (H6)
+  - `build`: `contents: read`, `packages: write`, `id-token: write`
+  - `test`: `contents: read`, `packages: read`
+  - `scan`: `contents: read`, `packages: read`, `security-events: write`
+  - `promote`: `packages: write`
+- CI/CD `run:` blocks no longer use `${{ }}` expressions directly (H5)
+  - All expressions moved to step-level `env:` blocks to prevent shell injection
+- Container entrypoint changed from `CMD` to `ENTRYPOINT` for entrypoint.sh
+- lighttpd server version header hidden (`server.tag = ""`)
+- lighttpd directory listing disabled (`dir-listing.activate = "disable"`)
+- docker-compose.yml now includes `security_opt: no-new-privileges:true` (H4)
+- docker-compose.yml now includes `cap_drop: ALL` (H4)
+- Shellcheck linting now covers `entrypoint.sh` in addition to `healthcheck.sh`
+
+## [1.2.1] - 2026-01-07
+
+### Changed
+
+- Updated GitHub Actions to latest versions
+- Updated Alpine base image to 3.23.3
+- Updated OpenSSL to 3.5.5-r0
+- Adjusted Renovate schedule and removed rate limits
+
 ## [1.2.0] - 2026-01-06
 
 ### Added
@@ -173,7 +220,10 @@ This project is a fork of [danielb7390/nut-cgi](https://github.com/danielb7390/n
 - **Issue Tracker**: <https://github.com/owine/nut-cgi/issues>
 - **Security Advisories**: <https://github.com/owine/nut-cgi/security/advisories>
 
-[Unreleased]: https://github.com/owine/nut-cgi/compare/v1.1.2...HEAD
+[Unreleased]: https://github.com/owine/nut-cgi/compare/v1.3.0...HEAD
+[1.3.0]: https://github.com/owine/nut-cgi/compare/v1.2.1...v1.3.0
+[1.2.1]: https://github.com/owine/nut-cgi/compare/v1.2.0...v1.2.1
+[1.2.0]: https://github.com/owine/nut-cgi/compare/v1.1.2...v1.2.0
 [1.1.2]: https://github.com/owine/nut-cgi/compare/v1.1.1...v1.1.2
 [1.1.1]: https://github.com/owine/nut-cgi/compare/v1.1.0...v1.1.1
 [1.1.0]: https://github.com/owine/nut-cgi/compare/v1.0.0...v1.1.0
