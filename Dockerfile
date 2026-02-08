@@ -14,11 +14,13 @@ RUN apk add --no-cache \
     gd-dev=2.3.3-r10 \
     curl=8.17.0-r1
 
-# Download and extract NUT source
+# Download, verify checksum, and extract NUT source
 WORKDIR /build
-RUN curl -L https://github.com/networkupstools/nut/releases/download/v${NUT_VERSION}/nut-${NUT_VERSION}.tar.gz -o nut.tar.gz && \
-    tar -xzf nut.tar.gz && \
-    rm nut.tar.gz
+RUN curl -L https://github.com/networkupstools/nut/releases/download/v${NUT_VERSION}/nut-${NUT_VERSION}.tar.gz -o nut-${NUT_VERSION}.tar.gz && \
+    curl -L https://github.com/networkupstools/nut/releases/download/v${NUT_VERSION}/nut-${NUT_VERSION}.tar.gz.sha256 -o nut-${NUT_VERSION}.tar.gz.sha256 && \
+    sha256sum -c nut-${NUT_VERSION}.tar.gz.sha256 && \
+    tar -xzf nut-${NUT_VERSION}.tar.gz && \
+    rm nut-${NUT_VERSION}.tar.gz nut-${NUT_VERSION}.tar.gz.sha256
 
 # Build NUT with CGI support
 WORKDIR /build/nut-${NUT_VERSION}
@@ -103,21 +105,41 @@ RUN sed -i 's|^server.document-root.*|server.document-root = "/usr/lib/cgi-bin/n
     echo 'server.max-connections = 16    # Limit concurrent connections (default: 1024)' >> /etc/lighttpd/lighttpd.conf && \
     echo 'server.max-keep-alive-requests = 4  # Keep-alive requests per connection' >> /etc/lighttpd/lighttpd.conf && \
     echo 'server.max-worker = 2          # Worker processes for CGI (default: 4)' >> /etc/lighttpd/lighttpd.conf && \
-    echo 'server.max-fds = 128           # Max file descriptors (default: 1024)' >> /etc/lighttpd/lighttpd.conf
+    echo 'server.max-fds = 128           # Max file descriptors (default: 1024)' >> /etc/lighttpd/lighttpd.conf && \
+    # Security headers
+    echo '' >> /etc/lighttpd/lighttpd.conf && \
+    echo '# Security headers' >> /etc/lighttpd/lighttpd.conf && \
+    echo 'server.modules += ( "mod_setenv" )' >> /etc/lighttpd/lighttpd.conf && \
+    echo 'setenv.add-response-header = (' >> /etc/lighttpd/lighttpd.conf && \
+    echo '  "X-Content-Type-Options" => "nosniff",' >> /etc/lighttpd/lighttpd.conf && \
+    echo '  "X-Frame-Options" => "DENY",' >> /etc/lighttpd/lighttpd.conf && \
+    echo '  "Referrer-Policy" => "no-referrer",' >> /etc/lighttpd/lighttpd.conf && \
+    echo "  \"Content-Security-Policy\" => \"default-src 'self'; img-src 'self' data:; style-src 'self' 'unsafe-inline'\"" >> /etc/lighttpd/lighttpd.conf && \
+    echo ')' >> /etc/lighttpd/lighttpd.conf && \
+    # Hide server version and disable directory listing
+    echo 'server.tag = ""' >> /etc/lighttpd/lighttpd.conf && \
+    echo 'dir-listing.activate = "disable"' >> /etc/lighttpd/lighttpd.conf && \
+    # Block upsset.cgi by default (administrative interface - security risk)
+    echo '' >> /etc/lighttpd/lighttpd.conf && \
+    echo '# Block upsset.cgi by default (use ENABLE_UPSSET=true to allow)' >> /etc/lighttpd/lighttpd.conf && \
+    echo '$HTTP["url"] =~ "^/upsset\.cgi" { url.access-deny = ("") }' >> /etc/lighttpd/lighttpd.conf
 
 # Make NUT config directory world-readable for --user UID override compatibility
 RUN chmod 755 /etc/nut && \
     # Ensure CGI binaries are executable
     chmod 755 /usr/lib/cgi-bin/nut/*.cgi
 
-# Copy health check script with execute permissions for any user
+# Copy health check and entrypoint scripts with execute permissions for any user
 COPY --chmod=0755 healthcheck.sh /healthcheck.sh
+COPY --chmod=0755 entrypoint.sh /entrypoint.sh
 
 # Switch to non-root user for runtime
 # Can be overridden with docker run --user <uid>:<gid>
 USER nut
 
-# Expose HTTP port
+# NOTE: This container exposes plain HTTP on port 80.
+# For production use, deploy behind a reverse proxy (e.g., Traefik, nginx)
+# that provides TLS termination and authentication.
 EXPOSE 80
 
 # Health check using enhanced script
@@ -128,5 +150,5 @@ EXPOSE 80
 HEALTHCHECK --interval=30s --timeout=10s --start-period=15s --retries=3 \
     CMD ["/healthcheck.sh"]
 
-# Run lighttpd in foreground mode
-CMD ["lighttpd", "-D", "-f", "/etc/lighttpd/lighttpd.conf"]
+# Run via entrypoint (handles ENABLE_UPSSET env var)
+ENTRYPOINT ["/entrypoint.sh"]
