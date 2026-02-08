@@ -36,8 +36,8 @@ jobs:
         with:
           ref: ${{ github.sha }}
 
-      - name: Run shellcheck on healthcheck.sh
-        run: shellcheck healthcheck.sh
+      - name: Run shellcheck on shell scripts
+        run: shellcheck healthcheck.sh entrypoint.sh
 
   yaml-lint:
     name: YAML Linting
