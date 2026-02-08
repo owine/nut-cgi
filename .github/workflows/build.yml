@@ -19,16 +19,14 @@ env:
   REGISTRY: ghcr.io
   IMAGE_NAME: ${{ github.repository }}
 
-permissions:
-  contents: read
-  packages: write
-  id-token: write
-  security-events: write
-
 jobs:
   build:
     name: Build Multi-Arch Image
     runs-on: ubuntu-24.04
+    permissions:
+      contents: read
+      packages: write
+      id-token: write
     outputs:
       image-sha-tag: ${{ steps.meta.outputs.tags }}
       image-digest: ${{ steps.build.outputs.digest }}
@@ -76,13 +74,19 @@ jobs:
           no-cache: ${{ github.event.inputs.force-rebuild == 'true' }}
 
       - name: Image built
+        env:
+          IMAGE_TAGS: ${{ steps.meta.outputs.tags }}
+          IMAGE_DIGEST: ${{ steps.build.outputs.digest }}
         run: |
-          echo "Image built and tagged: ${{ steps.meta.outputs.tags }}"
-          echo "Image digest: ${{ steps.build.outputs.digest }}"
+          echo "Image built and tagged: $IMAGE_TAGS"
+          echo "Image digest: $IMAGE_DIGEST"
 
   test:
     name: Functional Testing
     runs-on: ubuntu-24.04
+    permissions:
+      contents: read
+      packages: read
     needs: build
     if: github.event_name != 'pull_request'
     steps:
@@ -97,8 +101,9 @@ jobs:
           password: ${{ secrets.GITHUB_TOKEN }}
 
       - name: Pull built image
+        env:
+          IMAGE_TAG: ${{ needs.build.outputs.image-sha-tag }}
         run: |
-          IMAGE_TAG="${{ needs.build.outputs.image-sha-tag }}"
           echo "Pulling image: $IMAGE_TAG"
           docker pull "$IMAGE_TAG"
           # Tag locally for testing
@@ -153,7 +158,25 @@ jobs:
             echo "ERROR: Missing Content-Type header"
             exit 1
           fi
+          if ! echo "$headers" | grep -qi "X-Content-Type-Options: nosniff"; then
+            echo "ERROR: Missing X-Content-Type-Options header"
+            exit 1
+          fi
+          if ! echo "$headers" | grep -qi "X-Frame-Options: DENY"; then
+            echo "ERROR: Missing X-Frame-Options header"
+            exit 1
+          fi
           echo "HTTP headers validated successfully"
+
+      - name: Test upsset.cgi is blocked by default
+        run: |
+          echo "Verifying upsset.cgi is blocked..."
+          status=$(curl -s -o /dev/null -w "%{http_code}" http://localhost:8080/upsset.cgi)
+          if [ "$status" != "403" ]; then
+            echo "ERROR: upsset.cgi should return 403, got $status"
+            exit 1
+          fi
+          echo "upsset.cgi correctly blocked (HTTP 403)"
 
       - name: Test CGI execution
         run: |
@@ -235,6 +258,10 @@ jobs:
     runs-on: ubuntu-24.04
     needs: build
     if: github.event_name != 'pull_request'
+    permissions:
+      contents: read
+      packages: read
+      security-events: write
     steps:
       - name: Checkout code
         uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6.0.2
@@ -247,8 +274,9 @@ jobs:
           password: ${{ secrets.GITHUB_TOKEN }}
 
       - name: Pull built image
+        env:
+          IMAGE_TAG: ${{ needs.build.outputs.image-sha-tag }}
         run: |
-          IMAGE_TAG="${{ needs.build.outputs.image-sha-tag }}"
           echo "Pulling image for scanning: $IMAGE_TAG"
           docker pull "$IMAGE_TAG"
 
@@ -283,6 +311,8 @@ jobs:
       github.event_name != 'pull_request' &&
       needs.test.result == 'success' &&
       needs.scan.result == 'success'
+    permissions:
+      packages: write
     steps:
       - name: Log in to GitHub Container Registry
         uses: docker/login-action@c94ce9fb468520275223c153574b00df6fe4bcc9 # v3.7.0
@@ -293,18 +323,22 @@ jobs:
 
       - name: Determine promotion tags
         id: tags
+        env:
+          SOURCE_TAG: ${{ needs.build.outputs.image-sha-tag }}
+          GIT_REF: ${{ github.ref }}
+          GIT_REF_NAME: ${{ github.ref_name }}
+          IMAGE_FULL: ${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}
         run: |
-          SOURCE_TAG="${{ needs.build.outputs.image-sha-tag }}"
           TAGS=""
 
           # Add :main tag for pushes to main branch
-          if [ "${{ github.ref }}" = "refs/heads/main" ]; then
-            TAGS="$TAGS ${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}:main"
+          if [ "$GIT_REF" = "refs/heads/main" ]; then
+            TAGS="$TAGS $IMAGE_FULL:main"
           fi
 
           # Add release tags for version tags
-          if [[ "${{ github.ref }}" =~ ^refs/tags/v[0-9]+\.[0-9]+\.[0-9]+$ ]]; then
-            VERSION="${{ github.ref_name }}"
+          if [[ "$GIT_REF" =~ ^refs/tags/v[0-9]+\.[0-9]+\.[0-9]+$ ]]; then
+            VERSION="$GIT_REF_NAME"
             # Remove 'v' prefix
             VERSION_NO_V="${VERSION#v}"
 
@@ -313,10 +347,10 @@ jobs:
             MINOR=$(echo "$VERSION_NO_V" | cut -d. -f2)
 
             # Add all version tags
-            TAGS="$TAGS ${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}:latest"
-            TAGS="$TAGS ${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}:$VERSION"
-            TAGS="$TAGS ${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}:v$MAJOR.$MINOR"
-            TAGS="$TAGS ${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}:v$MAJOR"
+            TAGS="$TAGS $IMAGE_FULL:latest"
+            TAGS="$TAGS $IMAGE_FULL:$VERSION"
+            TAGS="$TAGS $IMAGE_FULL:v$MAJOR.$MINOR"
+            TAGS="$TAGS $IMAGE_FULL:v$MAJOR"
           fi
 
           echo "SOURCE_TAG=$SOURCE_TAG" >> "$GITHUB_OUTPUT"
@@ -328,21 +362,25 @@ jobs:
 
       - name: Promote image with additional tags
         if: steps.tags.outputs.PROMOTION_TAGS != ''
+        env:
+          SOURCE: ${{ steps.tags.outputs.SOURCE_TAG }}
+          PROMOTION_TAGS: ${{ steps.tags.outputs.PROMOTION_TAGS }}
         run: |
-          SOURCE="${{ steps.tags.outputs.SOURCE_TAG }}"
-
           # Use docker buildx imagetools create to add tags (fast, no rebuild)
-          for TAG in ${{ steps.tags.outputs.PROMOTION_TAGS }}; do
+          for TAG in $PROMOTION_TAGS; do
             echo "Promoting $SOURCE -> $TAG"
             docker buildx imagetools create --tag "$TAG" "$SOURCE"
           done
 
       - name: Promotion complete
+        env:
+          SHA_TAG: ${{ needs.build.outputs.image-sha-tag }}
+          PROMOTION_TAGS: ${{ steps.tags.outputs.PROMOTION_TAGS }}
         run: |
-          echo "✅ Image promotion successful"
-          echo "SHA tag: ${{ needs.build.outputs.image-sha-tag }}"
-          if [ -n "${{ steps.tags.outputs.PROMOTION_TAGS }}" ]; then
-            echo "Promoted to: ${{ steps.tags.outputs.PROMOTION_TAGS }}"
+          echo "Image promotion successful"
+          echo "SHA tag: $SHA_TAG"
+          if [ -n "$PROMOTION_TAGS" ]; then
+            echo "Promoted to: $PROMOTION_TAGS"
           else
             echo "No additional tags applied"
           fi
