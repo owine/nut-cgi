@@ -87,6 +87,7 @@ RUN addgroup -g 1000 nut && \
 RUN rm -f /etc/lighttpd/conf.d/*-unconfigured.conf
 
 # Configure lighttpd: set document root, index file, PID location, logging, and CGI
+# hadolint ignore=SC2016
 RUN sed -i 's|^server.document-root.*|server.document-root = "/usr/lib/cgi-bin/nut"|' /etc/lighttpd/lighttpd.conf && \
     sed -i 's|^index-file.names.*|index-file.names = ( "upsstats.cgi" )|' /etc/lighttpd/lighttpd.conf && \
     sed -i 's|^server.pid-file.*|server.pid-file = "/tmp/lighttpd.pid"|' /etc/lighttpd/lighttpd.conf && \
