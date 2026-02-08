@@ -11,6 +11,14 @@ services:
     # Security: Read-only root filesystem
     read_only: true
 
+    # Security: Prevent privilege escalation
+    security_opt:
+      - no-new-privileges:true
+
+    # Security: Drop all Linux capabilities
+    cap_drop:
+      - ALL
+
     # Security: Writable temp space for PIDs and logs
     tmpfs:
       - /tmp
@@ -21,12 +29,16 @@ services:
       # basic  = Validate infrastructure only (web server + CGI)
       # strict = Validate infrastructure + UPS connectivity
       - HEALTHCHECK_MODE=basic
+      # WARNING: upsset.cgi allows UPS configuration changes (shutdown, etc.)
+      # Only enable behind an authenticated reverse proxy.
+      # - ENABLE_UPSSET=true
 
     # Mount your hosts.conf configuration
     volumes:
       - ./hosts.conf:/etc/nut/hosts.conf:ro
 
-    # Map container port 80 to host port 8000
+    # NOTE: Exposes plain HTTP. In production, deploy behind a reverse proxy
+    # (e.g., Traefik, nginx) that provides TLS termination and authentication.
     ports:
       - "8000:80"
 
