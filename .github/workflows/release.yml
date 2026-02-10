@@ -162,15 +162,12 @@ jobs:
           echo "Claude raw output:"
           echo "$RESULT"
 
-          # Extract the text content from the JSON output format
-          ANALYSIS=$(echo "$RESULT" | jq -r \
-            'if type == "array" then
-              map(select(.type == "text")) | .[0].text // empty
-            elif type == "object" and .type == "text" then
-              .text
-            else
-              tostring
-            end')
+          # Extract the result text from the --output-format json envelope
+          # The envelope is {"type":"result", "result":"<claude's response>", ...}
+          ANALYSIS=$(echo "$RESULT" | jq -r '.result // empty')
+
+          # Strip markdown code fences if Claude wrapped the JSON in them
+          ANALYSIS=$(echo "$ANALYSIS" | sed '/^```/d')
 
           # Validate JSON structure
           if ! echo "$ANALYSIS" | jq -e '.should_release' > /dev/null 2>&1; then
