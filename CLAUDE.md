@@ -106,7 +106,7 @@ Configuration: 30s interval, 10s timeout, 15s start period, 3 retries
 
 ### CI/CD Pipeline
 
-Three GitHub Actions workflows provide comprehensive automation:
+Four GitHub Actions workflows provide comprehensive automation:
 
 1. **`lint.yml`**: Pre-build validation
    - Dockerfile linting (hadolint)
@@ -128,6 +128,14 @@ Three GitHub Actions workflows provide comprehensive automation:
    - Uploads results to GitHub Security tab
    - Fails on critical vulnerabilities
 
+4. **`release.yml`**: Automated weekly releases
+   - Claude Code analyzes unreleased commits and determines semver bump
+   - Updates CHANGELOG.md, commits, tags, and creates GitHub Release
+   - Tag push triggers `build.yml` automatically via GitHub App token
+   - Schedule: Monday 4am CST (10:00 UTC), or manual `workflow_dispatch`
+   - Supports dry-run mode for testing without creating a release
+   - Requires three repository secrets (see workflow file for details)
+
 ### Dependency Management
 
 Renovate bot automatically manages updates with this strategy:
@@ -135,10 +143,25 @@ Renovate bot automatically manages updates with this strategy:
 - **Alpine base image**: Auto-merge patch versions and digests
 - **Alpine packages**: Auto-merge package revision bumps (-rN)
 - **GitHub Actions**: Auto-merge minor/patch updates
-- **Schedule**: Weekly Monday mornings (low traffic)
+- **Schedule**: Weekly Sunday before noon (ahead of Monday automated release)
 - **Security overrides**: Immediate processing regardless of schedule
 
 All auto-merges require passing CI/CD checks.
+
+### Automated Releases
+
+The `release.yml` workflow runs every Monday at 4am CST and uses Claude Code to:
+
+1. Gather all commits since the last git tag
+2. Analyze them against the project's semver policy
+3. Determine the appropriate version bump (patch/minor/major)
+4. Generate CHANGELOG.md entries and release notes
+5. Commit, tag, and push (triggering `build.yml` automatically)
+6. Create a GitHub Release
+
+The workflow requires three repository secrets for Claude Code API access and a GitHub App token. The GitHub App is needed because `GITHUB_TOKEN` events do not trigger other workflows. See the workflow file for secret names and configuration details.
+
+**Testing**: Use `workflow_dispatch` with `dry-run: true` to validate the analysis without creating a release.
 
 ## Image Tagging Strategy
 
@@ -160,8 +183,9 @@ nut-cgi/
 ├── .github/
 │   ├── workflows/
 │   │   ├── build.yml       # Multi-arch build & GHCR publishing
-│   │   ├── security.yml    # Trivy vulnerability scanning
-│   │   └── lint.yml        # Pre-build validation
+│   │   ├── lint.yml        # Pre-build validation
+│   │   ├── release.yml     # Automated weekly releases (Claude Code)
+│   │   └── security.yml    # Trivy vulnerability scanning
 │   └── renovate.json       # Dependency automation config
 ├── docs/
 │   └── plans/              # Design documents and migration plans

@@ -1,0 +1,295 @@
+---
+name: Automated Release
+
+"on":
+  schedule:
+    # Monday 4am CST = 10:00 UTC
+    - cron: "0 10 * * 1"
+  workflow_dispatch:
+    inputs:
+      dry-run:
+        description: 'Dry run (analyze only, no release)'
+        required: false
+        type: boolean
+        default: false
+
+permissions:
+  contents: write
+
+jobs:
+  release:
+    name: Analyze and Release
+    runs-on: ubuntu-24.04
+    steps:
+      - name: Generate GitHub App token
+        id: app-token
+        uses: actions/create-github-app-token@29824e69f54612133e76f7eaac726eef6c875baf # v2.2.1
+        with:
+          app-id: ${{ secrets.RELEASE_APP_ID }}
+          private-key: ${{ secrets.RELEASE_APP_PRIVATE_KEY }}
+
+      - name: Checkout code
+        uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6.0.2
+        with:
+          fetch-depth: 0
+          token: ${{ steps.app-token.outputs.token }}
+
+      - name: Get latest tag and commits
+        id: commits
+        run: |
+          LATEST_TAG=$(git describe --tags --abbrev=0 2>/dev/null || echo "")
+          if [ -z "$LATEST_TAG" ]; then
+            echo "No tags found, using initial commit"
+            COMMIT_RANGE="HEAD"
+            CURRENT_VERSION="0.0.0"
+          else
+            COMMIT_RANGE="$LATEST_TAG..HEAD"
+            CURRENT_VERSION="${LATEST_TAG#v}"
+          fi
+
+          COMMIT_COUNT=$(git rev-list --count "$COMMIT_RANGE" 2>/dev/null || echo "0")
+          {
+            echo "latest_tag=$LATEST_TAG"
+            echo "commit_range=$COMMIT_RANGE"
+            echo "commit_count=$COMMIT_COUNT"
+            echo "current_version=$CURRENT_VERSION"
+          } >> "$GITHUB_OUTPUT"
+
+          echo "Latest tag: $LATEST_TAG"
+          echo "Current version: $CURRENT_VERSION"
+          echo "Commits since tag: $COMMIT_COUNT"
+
+      - name: Early exit if no commits
+        if: steps.commits.outputs.commit_count == '0'
+        run: |
+          echo "No commits since last tag. Nothing to release."
+          echo "SKIP_RELEASE=true" >> "$GITHUB_ENV"
+
+      - name: Gather commit log
+        if: env.SKIP_RELEASE != 'true'
+        id: log
+        env:
+          COMMIT_RANGE: ${{ steps.commits.outputs.commit_range }}
+        run: |
+          COMMIT_LOG=$(git log "$COMMIT_RANGE" --pretty=format:"%h %s" 2>/dev/null || echo "")
+          # Write to file to avoid shell escaping issues
+          echo "$COMMIT_LOG" > /tmp/commit_log.txt
+          echo "Commits to analyze:"
+          cat /tmp/commit_log.txt
+
+      - name: Setup Node.js
+        if: env.SKIP_RELEASE != 'true'
+        uses: actions/setup-node@49933ea5288caeca8642d1e84afbd3f7d6820020 # v4.4.0
+        with:
+          node-version: 22
+
+      - name: Run Claude Code analysis
+        if: env.SKIP_RELEASE != 'true'
+        id: claude
+        env:
+          ANTHROPIC_API_KEY: ${{ secrets.ANTHROPIC_API_KEY }}
+          CURRENT_VERSION: ${{ steps.commits.outputs.current_version }}
+        run: |
+          COMMIT_LOG=$(cat /tmp/commit_log.txt)
+
+          PROMPT=$(cat << 'PROMPT_EOF'
+          You are a release manager for the nut-cgi project. Analyze the commits
+          since the last release and determine if a new release is needed, and if
+          so, what the version bump should be.
+
+          ## Semver Policy
+
+          **Patch (v1.0.x):**
+          - Alpine package updates within same minor version
+          - Security fixes (CVE patches)
+          - Health check refinements
+          - Documentation updates
+          - Dependency-only changes (Renovate auto-merge PRs)
+
+          **Minor (v1.x.0):**
+          - Alpine minor version updates (3.23 → 3.24)
+          - New features (additional health check options)
+          - Non-breaking configuration enhancements
+          - Lighttpd configuration improvements
+          - New CI/CD workflows or automation features
+
+          **Major (vx.0.0):**
+          - Breaking configuration changes
+          - Alpine major version updates (3.x → 4.x)
+          - Incompatible API/interface changes
+          - Changes requiring compose file modifications
+
+          ## Current Version
+          CURRENT_VERSION_PLACEHOLDER
+
+          ## Commits Since Last Release
+          COMMIT_LOG_PLACEHOLDER
+
+          ## Instructions
+
+          Respond with ONLY a JSON object (no markdown fences, no extra text):
+          {
+            "should_release": true/false,
+            "version": "X.Y.Z",
+            "bump_type": "patch|minor|major",
+            "changelog_section": "Keep a Changelog format (### Added, ### Changed, etc.)",
+            "release_title": "short title for the GitHub Release",
+            "release_notes": "markdown body for GitHub Release notes"
+          }
+
+          If there are no meaningful changes (e.g., only CI metadata or
+          non-functional changes that don't affect the released artifact),
+          set should_release to false and leave other fields empty.
+
+          For the changelog_section, use subsections like ### Added, ### Changed,
+          ### Fixed, ### Removed as appropriate. Do NOT include the version header
+          itself — just the subsection content.
+          PROMPT_EOF
+          )
+
+          # Substitute placeholders
+          PROMPT="${PROMPT//CURRENT_VERSION_PLACEHOLDER/$CURRENT_VERSION}"
+          PROMPT="${PROMPT//COMMIT_LOG_PLACEHOLDER/$COMMIT_LOG}"
+
+          # Run Claude Code
+          RESULT=$(npx -y @anthropic-ai/claude-code@latest \
+            -p "$PROMPT" \
+            --model sonnet \
+            --output-format json \
+            --max-turns 1 \
+            2>/dev/null)
+
+          echo "Claude raw output:"
+          echo "$RESULT"
+
+          # Extract the text content from the JSON output format
+          ANALYSIS=$(echo "$RESULT" | jq -r \
+            'if type == "array" then
+              map(select(.type == "text")) | .[0].text // empty
+            elif type == "object" and .type == "text" then
+              .text
+            else
+              tostring
+            end')
+
+          # Validate JSON structure
+          if ! echo "$ANALYSIS" | jq -e '.should_release' > /dev/null 2>&1; then
+            echo "ERROR: Claude output is not valid JSON"
+            echo "Raw analysis: $ANALYSIS"
+            exit 1
+          fi
+
+          # Write analysis to file for subsequent steps
+          echo "$ANALYSIS" > /tmp/release_analysis.json
+
+          SHOULD_RELEASE=$(echo "$ANALYSIS" | jq -r '.should_release')
+          echo "should_release=$SHOULD_RELEASE" >> "$GITHUB_OUTPUT"
+
+          if [ "$SHOULD_RELEASE" = "true" ]; then
+            VERSION=$(echo "$ANALYSIS" | jq -r '.version')
+            BUMP_TYPE=$(echo "$ANALYSIS" | jq -r '.bump_type')
+            RELEASE_TITLE=$(echo "$ANALYSIS" | jq -r '.release_title')
+            {
+              echo "version=$VERSION"
+              echo "bump_type=$BUMP_TYPE"
+              echo "release_title=$RELEASE_TITLE"
+            } >> "$GITHUB_OUTPUT"
+            echo "Release decision: v$VERSION ($BUMP_TYPE bump)"
+            echo "Release title: $RELEASE_TITLE"
+          else
+            echo "Claude determined no release is needed."
+          fi
+
+      - name: Early exit if no release needed
+        if: env.SKIP_RELEASE != 'true' && steps.claude.outputs.should_release != 'true'
+        run: |
+          echo "No release needed based on commit analysis."
+          echo "SKIP_RELEASE=true" >> "$GITHUB_ENV"
+
+      - name: Update CHANGELOG.md
+        if: env.SKIP_RELEASE != 'true'
+        env:
+          VERSION: ${{ steps.claude.outputs.version }}
+          LATEST_TAG: ${{ steps.commits.outputs.latest_tag }}
+        run: |
+          CHANGELOG_SECTION=$(jq -r '.changelog_section' /tmp/release_analysis.json)
+          TODAY=$(date +%Y-%m-%d)
+
+          # Insert new version section after [Unreleased] header
+          awk -v version="$VERSION" \
+              -v date="$TODAY" \
+              -v section="$CHANGELOG_SECTION" '
+            /^## \[Unreleased\]/ {
+              print
+              print ""
+              print "## [" version "] - " date
+              print ""
+              print section
+              next
+            }
+            { print }
+          ' CHANGELOG.md > /tmp/CHANGELOG_new.md
+
+          # Update comparison links at bottom of file
+          # Add new version link and update Unreleased link
+          sed -i \
+            "s|\[Unreleased\]: .*|[Unreleased]: https://github.com/owine/nut-cgi/compare/v${VERSION}...HEAD|" \
+            /tmp/CHANGELOG_new.md
+
+          PREV_VERSION="${LATEST_TAG#v}"
+          sed -i \
+            "/^\[Unreleased\]/a [${VERSION}]: https://github.com/owine/nut-cgi/compare/v${PREV_VERSION}...v${VERSION}" \
+            /tmp/CHANGELOG_new.md
+
+          mv /tmp/CHANGELOG_new.md CHANGELOG.md
+
+          echo "Updated CHANGELOG.md for v$VERSION"
+
+      - name: Commit and tag release
+        if: env.SKIP_RELEASE != 'true' && inputs.dry-run != true
+        env:
+          VERSION: ${{ steps.claude.outputs.version }}
+          GIT_AUTHOR_NAME: "github-actions[bot]"
+          GIT_AUTHOR_EMAIL: "github-actions[bot]@users.noreply.github.com"
+          GIT_COMMITTER_NAME: "github-actions[bot]"
+          GIT_COMMITTER_EMAIL: "github-actions[bot]@users.noreply.github.com"
+        run: |
+          git add CHANGELOG.md
+          git commit -m "chore: release v${VERSION}"
+          git tag -a "v${VERSION}" -m "Release v${VERSION}"
+          git push origin main --follow-tags
+
+      - name: Create GitHub Release
+        if: env.SKIP_RELEASE != 'true' && inputs.dry-run != true
+        env:
+          GH_TOKEN: ${{ steps.app-token.outputs.token }}
+          VERSION: ${{ steps.claude.outputs.version }}
+          RELEASE_TITLE: ${{ steps.claude.outputs.release_title }}
+        run: |
+          RELEASE_NOTES=$(jq -r '.release_notes' /tmp/release_analysis.json)
+
+          gh release create "v${VERSION}" \
+            --title "${RELEASE_TITLE}" \
+            --notes "$RELEASE_NOTES"
+
+          echo "Created GitHub Release v${VERSION}"
+
+      - name: Dry run summary
+        if: env.SKIP_RELEASE != 'true' && inputs.dry-run == true
+        env:
+          VERSION: ${{ steps.claude.outputs.version }}
+          BUMP_TYPE: ${{ steps.claude.outputs.bump_type }}
+          RELEASE_TITLE: ${{ steps.claude.outputs.release_title }}
+        run: |
+          echo "=== DRY RUN SUMMARY ==="
+          echo "Version: v$VERSION ($BUMP_TYPE bump)"
+          echo "Title: $RELEASE_TITLE"
+          echo ""
+          echo "=== CHANGELOG SECTION ==="
+          jq -r '.changelog_section' /tmp/release_analysis.json
+          echo ""
+          echo "=== RELEASE NOTES ==="
+          jq -r '.release_notes' /tmp/release_analysis.json
+          echo ""
+          echo "=== UPDATED CHANGELOG.md ==="
+          head -40 CHANGELOG.md

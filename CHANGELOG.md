@@ -7,6 +7,20 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Added
+
+- Automated weekly release workflow using Claude Code for commit analysis
+  - Runs every Monday at 4am CST (10:00 UTC)
+  - Analyzes unreleased commits and determines semver bump
+  - Updates CHANGELOG.md, creates git tag, and publishes GitHub Release
+  - Supports dry-run mode via `workflow_dispatch` for testing
+  - Uses GitHub App token to trigger downstream build pipeline on tag push
+
+### Changed
+
+- Renovate schedule moved from Monday to Sunday (before 12pm) so dependency
+  PRs are merged before the Monday automated release window
+
 ## [1.3.0] - 2026-02-07
 
 ### Added

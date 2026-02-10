@@ -5,7 +5,7 @@
   ],
   "timezone": "America/Chicago",
   "schedule": [
-    "before 8am on Monday"
+    "before 12pm on Sunday"
   ],
   "semanticCommits": "enabled",
   "commitMessagePrefix": "chore(deps):",
