@@ -10,12 +10,6 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ## [1.4.0] - 2026-02-10
 
 ### Added
-- Automated weekly release workflow using Claude Code for commit analysis and version determination
-
-### Fixed
-- Claude Code output parsing in release workflow to properly handle JSON responses
-
-### Added
 
 - Automated weekly release workflow using Claude Code for commit analysis
   - Runs every Monday at 4am CST (10:00 UTC)
