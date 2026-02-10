@@ -7,6 +7,14 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [1.4.0] - 2026-02-10
+
+### Added
+- Automated weekly release workflow using Claude Code for commit analysis and version determination
+
+### Fixed
+- Claude Code output parsing in release workflow to properly handle JSON responses
+
 ### Added
 
 - Automated weekly release workflow using Claude Code for commit analysis
@@ -234,7 +242,8 @@ This project is a fork of [danielb7390/nut-cgi](https://github.com/danielb7390/n
 - **Issue Tracker**: <https://github.com/owine/nut-cgi/issues>
 - **Security Advisories**: <https://github.com/owine/nut-cgi/security/advisories>
 
-[Unreleased]: https://github.com/owine/nut-cgi/compare/v1.3.0...HEAD
+[Unreleased]: https://github.com/owine/nut-cgi/compare/v1.4.0...HEAD
+[1.4.0]: https://github.com/owine/nut-cgi/compare/v1.3.0...v1.4.0
 [1.3.0]: https://github.com/owine/nut-cgi/compare/v1.2.1...v1.3.0
 [1.2.1]: https://github.com/owine/nut-cgi/compare/v1.2.0...v1.2.1
 [1.2.0]: https://github.com/owine/nut-cgi/compare/v1.1.2...v1.2.0
