@@ -7,6 +7,16 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [1.4.1] - 2026-02-16
+
+### Changed
+- Updated actions/setup-node action to v6 (#16)
+- Updated dependency node to v24 (#17)
+- Updated github actions (#15)
+
+### Fixed
+- Deduplicate v1.4.0 CHANGELOG entries
+
 ## [1.4.0] - 2026-02-10
 
 ### Added
@@ -236,7 +246,8 @@ This project is a fork of [danielb7390/nut-cgi](https://github.com/danielb7390/n
 - **Issue Tracker**: <https://github.com/owine/nut-cgi/issues>
 - **Security Advisories**: <https://github.com/owine/nut-cgi/security/advisories>
 
-[Unreleased]: https://github.com/owine/nut-cgi/compare/v1.4.0...HEAD
+[Unreleased]: https://github.com/owine/nut-cgi/compare/v1.4.1...HEAD
+[1.4.1]: https://github.com/owine/nut-cgi/compare/v1.4.0...v1.4.1
 [1.4.0]: https://github.com/owine/nut-cgi/compare/v1.3.0...v1.4.0
 [1.3.0]: https://github.com/owine/nut-cgi/compare/v1.2.1...v1.3.0
 [1.2.1]: https://github.com/owine/nut-cgi/compare/v1.2.0...v1.2.1
