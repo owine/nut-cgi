@@ -169,8 +169,8 @@ jobs:
           # Strip markdown code fences if Claude wrapped the JSON in them
           ANALYSIS=$(echo "$ANALYSIS" | sed '/^```/d')
 
-          # Validate JSON structure (use 'has' instead of -e to avoid false being treated as failure)
-          if ! echo "$ANALYSIS" | jq -e 'has("should_release")' > /dev/null 2>&1; then
+          # Validate JSON structure and type (has + type check avoids jq -e treating false as failure)
+          if ! echo "$ANALYSIS" | jq -e 'has("should_release") and (.should_release | type == "boolean")' > /dev/null 2>&1; then
             echo "ERROR: Claude output is not valid JSON"
             echo "Raw analysis: $ANALYSIS"
             exit 1
