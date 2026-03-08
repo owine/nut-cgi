@@ -30,7 +30,7 @@
       "description": "Track Alpine 3.23 APK package versions via Repology",
       "managerFilePatterns": ["Dockerfile"],
       "matchStrings": [
-        "(?<depName>lighttpd|curl|openssl|gd|build-base|autoconf|automake|libtool|pkgconf|gd-dev)=(?<currentValue>[^\\s]+)"
+        "(?<depName>lighttpd|curl|openssl|gd|zlib|build-base|autoconf|automake|libtool|pkgconf|gd-dev)=(?<currentValue>[^\\s]+)"
       ],
       "datasourceTemplate": "repology",
       "depNameTemplate": "alpine_3_23/{{{depName}}}",

@@ -67,7 +67,8 @@ RUN apk add --no-cache \
     lighttpd=1.4.82-r0 \
     curl=8.17.0-r1 \
     openssl=3.5.5-r0 \
-    gd=2.3.3-r10 && \
+    gd=2.3.3-r10 \
+    zlib=1.3.2-r0 && \
     # Verify installations
     lighttpd -v && \
     curl --version
