@@ -7,6 +7,19 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [1.4.2] - 2026-03-09
+
+### Fixed
+- Pin `zlib=1.3.2-r0` to resolve CVE-2026-22184 security vulnerability
+- Use `jq has()` for JSON validation in release workflow
+- Add boolean type assertion to release JSON validation
+
+### Changed
+- Update `docker/build-push-action` to v7
+- Update `docker/login-action` to v4
+- Update `docker/metadata-action` to v6
+- Update other GitHub Actions dependencies
+
 ## [1.4.1] - 2026-02-16
 
 ### Changed
@@ -246,7 +259,8 @@ This project is a fork of [danielb7390/nut-cgi](https://github.com/danielb7390/n
 - **Issue Tracker**: <https://github.com/owine/nut-cgi/issues>
 - **Security Advisories**: <https://github.com/owine/nut-cgi/security/advisories>
 
-[Unreleased]: https://github.com/owine/nut-cgi/compare/v1.4.1...HEAD
+[Unreleased]: https://github.com/owine/nut-cgi/compare/v1.4.2...HEAD
+[1.4.2]: https://github.com/owine/nut-cgi/compare/v1.4.1...v1.4.2
 [1.4.1]: https://github.com/owine/nut-cgi/compare/v1.4.0...v1.4.1
 [1.4.0]: https://github.com/owine/nut-cgi/compare/v1.3.0...v1.4.0
 [1.3.0]: https://github.com/owine/nut-cgi/compare/v1.2.1...v1.3.0
