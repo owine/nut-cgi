@@ -132,7 +132,7 @@ Four GitHub Actions workflows provide comprehensive automation:
    - Claude Code analyzes unreleased commits and determines semver bump
    - Updates CHANGELOG.md, commits, tags, and creates GitHub Release
    - Tag push triggers `build.yml` automatically via GitHub App token
-   - Schedule: Monday 4am CST (10:00 UTC), or manual `workflow_dispatch`
+   - Schedule: Tuesday 4am CST (10:00 UTC), or manual `workflow_dispatch`
    - Supports dry-run mode for testing without creating a release
    - Requires three repository secrets (see workflow file for details)
 
@@ -140,17 +140,18 @@ Four GitHub Actions workflows provide comprehensive automation:
 
 Renovate bot automatically manages updates with this strategy:
 
-- **Alpine base image**: Auto-merge patch versions and digests
-- **Alpine packages**: Auto-merge package revision bumps (-rN)
+- **Alpine dependencies**: Base image + APK packages grouped together, auto-merge patch/digest updates
 - **GitHub Actions**: Auto-merge minor/patch updates
-- **Schedule**: Weekly Sunday before noon (ahead of Monday automated release)
+- **Non-major dependencies**: Catch-all group for remaining deps, auto-merge minor/patch
+- **NUT source**: Manual review required
+- **Schedule**: Weekly on Mondays (ahead of Tuesday automated release)
 - **Security overrides**: Immediate processing regardless of schedule
 
 All auto-merges require passing CI/CD checks.
 
 ### Automated Releases
 
-The `release.yml` workflow runs every Monday at 4am CST and uses Claude Code to:
+The `release.yml` workflow runs every Tuesday at 4am CST and uses Claude Code to:
 
 1. Gather all commits since the last git tag
 2. Analyze them against the project's semver policy

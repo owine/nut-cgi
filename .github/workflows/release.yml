@@ -3,8 +3,8 @@ name: Automated Release
 
 "on":
   schedule:
-    # Monday 4am CST = 10:00 UTC
-    - cron: "0 10 * * 1"
+    # Tuesday 4am CST = 10:00 UTC
+    - cron: "0 10 * * 2"
   workflow_dispatch:
     inputs:
       dry-run:

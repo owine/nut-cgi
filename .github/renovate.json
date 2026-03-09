@@ -5,10 +5,11 @@
   ],
   "timezone": "America/Chicago",
   "schedule": [
-    "before 12pm on Sunday"
+    "on Monday"
   ],
   "semanticCommits": "enabled",
-  "commitMessagePrefix": "chore(deps):",
+  "semanticCommitType": "chore",
+  "semanticCommitScope": "deps",
   "commitBody": "Update {{depName}} from {{currentVersion}} to {{newVersion}}\n\n{{#if releases}}Release notes:\n{{#each releases}}- {{#if title}}{{title}}{{else}}{{version}}{{/if}}\n{{/each}}{{/if}}",
   "ignorePaths": [
     "docker-compose.yml"
@@ -39,14 +40,16 @@
   ],
   "packageRules": [
     {
-      "description": "Alpine Docker base image - auto-merge patch and digest updates",
+      "description": "Alpine dependencies (base image + APK packages) - auto-merge patch and digest updates (NOTE: When upgrading Alpine base to 3.24+, update repology depNameTemplate in customManagers)",
       "matchDatasources": [
-        "docker"
+        "docker",
+        "repology"
       ],
       "matchPackageNames": [
-        "alpine"
+        "alpine",
+        "/^alpine_3_23/"
       ],
-      "groupName": "alpine docker image",
+      "groupName": "alpine dependencies",
       "automerge": true,
       "automergeType": "pr",
       "matchUpdateTypes": [
@@ -66,20 +69,6 @@
       "automerge": false
     },
     {
-      "description": "Alpine APK packages - auto-merge patch updates (NOTE: When upgrading Alpine base to 3.24+, update repology depNameTemplate in customManagers)",
-      "matchDatasources": [
-        "repology"
-      ],
-      "matchPackageNames": [
-        "/^alpine_3_23/"
-      ],
-      "groupName": "alpine apk packages",
-      "automerge": true,
-      "matchUpdateTypes": [
-        "patch"
-      ]
-    },
-    {
       "description": "GitHub Actions - auto-merge minor and patch updates",
       "matchManagers": [
         "github-actions"
@@ -91,6 +80,17 @@
         "patch",
         "minor"
       ]
+    },
+    {
+      "description": "Catch-all: group remaining non-major updates and auto-merge",
+      "matchUpdateTypes": [
+        "minor",
+        "patch",
+        "digest"
+      ],
+      "groupName": "non-major dependencies",
+      "automerge": true,
+      "automergeType": "pr"
     }
   ],
   "vulnerabilityAlerts": {
