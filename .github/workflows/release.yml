@@ -81,7 +81,7 @@ jobs:
         if: env.SKIP_RELEASE != 'true'
         uses: actions/setup-node@53b83947a5a98c8d113130e565377fae1a50d02f # v6.3.0
         with:
-          node-version: 24
+          node-version: 24.14.0
 
       - name: Run Claude Code analysis
         if: env.SKIP_RELEASE != 'true'
@@ -152,7 +152,8 @@ jobs:
           PROMPT="${PROMPT//COMMIT_LOG_PLACEHOLDER/$COMMIT_LOG}"
 
           # Run Claude Code
-          RESULT=$(npx -y @anthropic-ai/claude-code@latest \
+          # renovate: datasource=npm depName=@anthropic-ai/claude-code
+          RESULT=$(npx -y @anthropic-ai/claude-code@2.1.72 \
             -p "$PROMPT" \
             --model sonnet \
             --output-format json \

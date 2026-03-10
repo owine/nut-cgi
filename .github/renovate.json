@@ -28,6 +28,16 @@
     },
     {
       "customType": "regex",
+      "description": "Track @anthropic-ai/claude-code npm package in npx commands",
+      "managerFilePatterns": [".github/workflows/**"],
+      "matchStrings": [
+        "# renovate: datasource=npm depName=@anthropic-ai/claude-code\\s+.*@anthropic-ai/claude-code@(?<currentValue>[^\\s]+)"
+      ],
+      "datasourceTemplate": "npm",
+      "depNameTemplate": "@anthropic-ai/claude-code"
+    },
+    {
+      "customType": "regex",
       "description": "Track Alpine 3.23 APK package versions via Repology",
       "managerFilePatterns": ["Dockerfile"],
       "matchStrings": [
@@ -74,6 +84,22 @@
         "github-actions"
       ],
       "groupName": "github actions",
+      "automerge": true,
+      "automergeType": "pr",
+      "matchUpdateTypes": [
+        "patch",
+        "minor"
+      ]
+    },
+    {
+      "description": "Claude Code CLI - auto-merge minor and patch updates",
+      "matchDatasources": [
+        "npm"
+      ],
+      "matchPackageNames": [
+        "@anthropic-ai/claude-code"
+      ],
+      "groupName": "claude-code cli",
       "automerge": true,
       "automergeType": "pr",
       "matchUpdateTypes": [
