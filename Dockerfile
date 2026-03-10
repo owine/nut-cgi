@@ -7,7 +7,8 @@ ARG NUT_VERSION=2.8.4
 # Install build dependencies for NUT compilation
 # Package versions are locked by the Alpine base image digest
 # hadolint ignore=DL3018
-RUN apk add --no-cache \
+RUN apk upgrade --no-cache && \
+    apk add --no-cache \
     build-base \
     autoconf \
     automake \
@@ -67,7 +68,8 @@ LABEL org.opencontainers.image.title="nut-cgi" \
 # Install runtime dependencies
 # Package versions are locked by the Alpine base image digest
 # hadolint ignore=DL3018
-RUN apk add --no-cache \
+RUN apk upgrade --no-cache && \
+    apk add --no-cache \
     lighttpd \
     curl \
     openssl \
