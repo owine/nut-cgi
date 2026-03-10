@@ -35,31 +35,18 @@
       ],
       "datasourceTemplate": "npm",
       "depNameTemplate": "@anthropic-ai/claude-code"
-    },
-    {
-      "customType": "regex",
-      "description": "Track Alpine 3.23 APK package versions via Repology",
-      "managerFilePatterns": ["Dockerfile"],
-      "matchStrings": [
-        "(?<depName>lighttpd|curl|openssl|gd|zlib|build-base|autoconf|automake|libtool|pkgconf|gd-dev)=(?<currentValue>[^\\s]+)"
-      ],
-      "datasourceTemplate": "repology",
-      "depNameTemplate": "alpine_3_23/{{{depName}}}",
-      "versioningTemplate": "loose"
     }
   ],
   "packageRules": [
     {
-      "description": "Alpine dependencies (base image + APK packages) - auto-merge patch and digest updates (NOTE: When upgrading Alpine base to 3.24+, update repology depNameTemplate in customManagers)",
+      "description": "Alpine base image - auto-merge patch and digest updates",
       "matchDatasources": [
-        "docker",
-        "repology"
+        "docker"
       ],
       "matchPackageNames": [
-        "alpine",
-        "/^alpine_3_23/"
+        "alpine"
       ],
-      "groupName": "alpine dependencies",
+      "groupName": "alpine base image",
       "automerge": true,
       "automergeType": "pr",
       "matchUpdateTypes": [

@@ -79,9 +79,9 @@ The Dockerfile uses a two-stage build approach:
 
 **Key Architectural Decisions:**
 
-- **Version Pinning**: All Alpine packages are explicitly version-pinned for reproducibility
-  - Example: `nut-cgi=2.8.0-r5`, `lighttpd=1.4.73-r0`, `curl=8.5.0-r0`
-  - Renovate automatically creates PRs to update these versions
+- **Version Pinning**: Alpine base image is digest-pinned; APK package versions are locked by the base image
+  - APK packages are NOT individually version-pinned (versions are determined by the Alpine release)
+  - Renovate manages the base image version and digest updates
 
 - **Non-Root User**: Runs as UID 1000 (user `nut`) by default
   - Supports `--user` override for custom UID/GID requirements
@@ -140,7 +140,7 @@ Four GitHub Actions workflows provide comprehensive automation:
 
 Renovate bot automatically manages updates with this strategy:
 
-- **Alpine dependencies**: Base image + APK packages grouped together, auto-merge patch/digest updates
+- **Alpine base image**: Auto-merge patch/digest updates (APK versions follow the base image)
 - **GitHub Actions**: Auto-merge minor/patch updates
 - **Non-major dependencies**: Catch-all group for remaining deps, auto-merge minor/patch
 - **NUT source**: Manual review required
@@ -224,15 +224,7 @@ The Dockerfile configures lighttpd via sed commands:
 
 ### Version Pinning Philosophy
 
-All Alpine packages use explicit version pins (e.g., `nut-cgi=2.8.0-r5`):
-
-**Benefits:**
-- Exact build reproducibility across time
-- Clear visibility into dependency changes via Renovate PRs
-- Efficient Docker layer caching
-- Rollback capability to known-good versions
-
-**Trade-off:** Slight maintenance overhead, mitigated by Renovate automation
+The Alpine base image is digest-pinned (e.g., `alpine:3.23.3@sha256:...`) for exact reproducibility. APK packages are **not** individually version-pinned because their versions are determined by the Alpine release — pinning them would break when the base image updates. Renovate manages the base image version and digest.
 
 ## Configuration
 

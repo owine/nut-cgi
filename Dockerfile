@@ -5,14 +5,15 @@ FROM alpine:3.23.3@sha256:25109184c71bdad752c8312a8623239686a9a2071e8825f20acb8f
 ARG NUT_VERSION=2.8.4
 
 # Install build dependencies for NUT compilation
+# Package versions are locked by the Alpine base image digest
 RUN apk add --no-cache \
-    build-base=0.5-r3 \
-    autoconf=2.72-r1 \
-    automake=1.18.1-r0 \
-    libtool=2.5.4-r2 \
-    pkgconf=2.5.1-r0 \
-    gd-dev=2.3.3-r10 \
-    curl=8.17.0-r1
+    build-base \
+    autoconf \
+    automake \
+    libtool \
+    pkgconf \
+    gd-dev \
+    curl
 
 # Download, verify checksum, and extract NUT source
 WORKDIR /build
@@ -51,7 +52,7 @@ RUN ./configure \
     cp /build/rootfs/etc/nut/upsset.conf.sample /build/rootfs/etc/nut/upsset.conf 2>/dev/null || true
 
 # ============================================================================
-# Runtime Stage - Minimal footprint with pinned versions
+# Runtime Stage - Minimal footprint
 # ============================================================================
 FROM alpine:3.23.3@sha256:25109184c71bdad752c8312a8623239686a9a2071e8825f20acb8f2198c3f659
 
@@ -62,13 +63,14 @@ LABEL org.opencontainers.image.title="nut-cgi" \
       org.opencontainers.image.source="https://github.com/owine/nut-cgi" \
       org.opencontainers.image.licenses="MIT"
 
-# Install runtime dependencies with pinned versions
+# Install runtime dependencies
+# Package versions are locked by the Alpine base image digest
 RUN apk add --no-cache \
-    lighttpd=1.4.82-r0 \
-    curl=8.17.0-r1 \
-    openssl=3.5.5-r0 \
-    gd=2.3.3-r10 \
-    zlib=1.3.2-r0 && \
+    lighttpd \
+    curl \
+    openssl \
+    gd \
+    zlib && \
     # Verify installations
     lighttpd -v && \
     curl --version
