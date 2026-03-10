@@ -7,6 +7,19 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [1.4.3] - 2026-03-10
+
+### Fixed
+- Add `apk upgrade` to Dockerfile to patch CVEs beyond what the base image provides
+- Remove APK version pins in favor of Alpine base image digest for cleaner dependency management
+- Ignore hadolint DL3018 for unpinned APK packages
+
+### Changed
+- Consolidate Renovate schedule to Mondays with grouped PRs
+- Pin `node-version` and `claude-code` for Renovate management
+- Update `docker/setup-qemu-action` to v4
+- Update `docker/setup-buildx-action` to v4
+
 ## [1.4.2] - 2026-03-09
 
 ### Fixed
@@ -259,7 +272,8 @@ This project is a fork of [danielb7390/nut-cgi](https://github.com/danielb7390/n
 - **Issue Tracker**: <https://github.com/owine/nut-cgi/issues>
 - **Security Advisories**: <https://github.com/owine/nut-cgi/security/advisories>
 
-[Unreleased]: https://github.com/owine/nut-cgi/compare/v1.4.2...HEAD
+[Unreleased]: https://github.com/owine/nut-cgi/compare/v1.4.3...HEAD
+[1.4.3]: https://github.com/owine/nut-cgi/compare/v1.4.2...v1.4.3
 [1.4.2]: https://github.com/owine/nut-cgi/compare/v1.4.1...v1.4.2
 [1.4.1]: https://github.com/owine/nut-cgi/compare/v1.4.0...v1.4.1
 [1.4.0]: https://github.com/owine/nut-cgi/compare/v1.3.0...v1.4.0
