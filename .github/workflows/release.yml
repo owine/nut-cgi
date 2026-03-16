@@ -153,7 +153,7 @@ jobs:
 
           # Run Claude Code
           # renovate: datasource=npm depName=@anthropic-ai/claude-code
-          RESULT=$(npx -y @anthropic-ai/claude-code@2.1.74 \
+          RESULT=$(npx -y @anthropic-ai/claude-code@2.1.75 \
             -p "$PROMPT" \
             --model sonnet \
             --output-format json \
