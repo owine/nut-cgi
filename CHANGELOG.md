@@ -7,6 +7,13 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [1.4.4] - 2026-03-17
+
+### Changed
+- Update non-major dependencies via Renovate (#27, #29)
+- Update `actions/create-github-app-token` action to v3 (#28)
+- Update `@anthropic-ai/claude-code` to v2.1.76 (#30)
+
 ## [1.4.3] - 2026-03-10
 
 ### Fixed
@@ -272,7 +279,8 @@ This project is a fork of [danielb7390/nut-cgi](https://github.com/danielb7390/n
 - **Issue Tracker**: <https://github.com/owine/nut-cgi/issues>
 - **Security Advisories**: <https://github.com/owine/nut-cgi/security/advisories>
 
-[Unreleased]: https://github.com/owine/nut-cgi/compare/v1.4.3...HEAD
+[Unreleased]: https://github.com/owine/nut-cgi/compare/v1.4.4...HEAD
+[1.4.4]: https://github.com/owine/nut-cgi/compare/v1.4.3...v1.4.4
 [1.4.3]: https://github.com/owine/nut-cgi/compare/v1.4.2...v1.4.3
 [1.4.2]: https://github.com/owine/nut-cgi/compare/v1.4.1...v1.4.2
 [1.4.1]: https://github.com/owine/nut-cgi/compare/v1.4.0...v1.4.1
