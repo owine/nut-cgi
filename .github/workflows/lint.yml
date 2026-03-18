@@ -4,9 +4,27 @@ name: Lint
 "on":
   push:
     branches: ["main"]
+    paths-ignore:
+      - "docs/**"
+      - "README.md"
+      - "CLAUDE.md"
+      - "LICENSE"
+      - "CHANGELOG.md"
+      - ".github/renovate.json"
   pull_request:
     branches: ["main"]
+    paths-ignore:
+      - "docs/**"
+      - "README.md"
+      - "CLAUDE.md"
+      - "LICENSE"
+      - "CHANGELOG.md"
+      - ".github/renovate.json"
   workflow_dispatch:
+
+concurrency:
+  group: ${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
 
 permissions:
   contents: read
