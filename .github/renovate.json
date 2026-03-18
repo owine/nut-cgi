@@ -66,36 +66,7 @@
       "automerge": false
     },
     {
-      "description": "GitHub Actions - auto-merge minor and patch updates",
-      "matchManagers": [
-        "github-actions"
-      ],
-      "groupName": "github actions",
-      "automerge": true,
-      "automergeType": "pr",
-      "matchUpdateTypes": [
-        "patch",
-        "minor"
-      ]
-    },
-    {
-      "description": "Claude Code CLI - auto-merge minor and patch updates",
-      "matchDatasources": [
-        "npm"
-      ],
-      "matchPackageNames": [
-        "@anthropic-ai/claude-code"
-      ],
-      "groupName": "claude-code cli",
-      "automerge": true,
-      "automergeType": "pr",
-      "matchUpdateTypes": [
-        "patch",
-        "minor"
-      ]
-    },
-    {
-      "description": "Catch-all: group remaining non-major updates and auto-merge",
+      "description": "All non-major updates grouped together and auto-merged",
       "matchUpdateTypes": [
         "minor",
         "patch",
