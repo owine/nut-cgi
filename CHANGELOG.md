@@ -5,6 +5,14 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [1.5.0](https://github.com/owine/nut-cgi/compare/v1.4.4...v1.5.0) (2026-03-30)
+
+
+### Features
+
+* add release-please configuration files ([f570c6f](https://github.com/owine/nut-cgi/commit/f570c6f9cb84b1d7c01a44d249f9970d2b0398fc))
+* replace Claude Code release workflow with release-please ([bf90d1d](https://github.com/owine/nut-cgi/commit/bf90d1dd671d25c25e21ab69e67d698177151ac5))
+
 ## [Unreleased]
 
 ## [1.4.4] - 2026-03-17
