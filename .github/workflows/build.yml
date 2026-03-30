@@ -13,6 +13,7 @@ name: Build, Test, and Publish
       - ".github/renovate.json"
       - "CHANGELOG.md"
       - ".release-please-manifest.json"
+      - "release-please-config.json"
       - "version.txt"
   pull_request:
     branches: ["main"]
@@ -24,6 +25,7 @@ name: Build, Test, and Publish
       - ".github/renovate.json"
       - "CHANGELOG.md"
       - ".release-please-manifest.json"
+      - "release-please-config.json"
       - "version.txt"
   workflow_dispatch:
     inputs:
