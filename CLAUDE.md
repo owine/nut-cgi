@@ -128,13 +128,12 @@ Four GitHub Actions workflows provide comprehensive automation:
    - Uploads results to GitHub Security tab
    - Fails on critical vulnerabilities
 
-4. **`release.yml`**: Automated weekly releases
-   - Claude Code analyzes unreleased commits and determines semver bump
-   - Updates CHANGELOG.md, commits, tags, and creates GitHub Release
+4. **`release.yml`**: Automated releases via release-please
+   - Creates/updates a release PR on every push to main
+   - Merging the release PR creates git tag + GitHub Release
    - Tag push triggers `build.yml` automatically via GitHub App token
-   - Schedule: Tuesday 4am CST (10:00 UTC), or manual `workflow_dispatch`
-   - Supports dry-run mode for testing without creating a release
-   - Requires three repository secrets (see workflow file for details)
+   - Uses conventional commit prefixes to determine version bumps
+   - Requires two repository secrets: `RELEASE_APP_ID`, `RELEASE_APP_PRIVATE_KEY`
 
 ### Dependency Management
 
@@ -144,25 +143,60 @@ Renovate bot automatically manages updates with this strategy:
 - **GitHub Actions**: Auto-merge minor/patch updates
 - **Non-major dependencies**: Catch-all group for remaining deps, auto-merge minor/patch
 - **NUT source**: Manual review required
-- **Schedule**: Weekly on Mondays (ahead of Tuesday automated release)
+- **Commit type**: `deps:` (a release-please releasable type, triggers patch releases)
+- **Schedule**: Weekly on Mondays
 - **Security overrides**: Immediate processing regardless of schedule
 
 All auto-merges require passing CI/CD checks.
 
 ### Automated Releases
 
-The `release.yml` workflow runs every Tuesday at 4am CST and uses Claude Code to:
+The `release.yml` workflow uses [release-please](https://github.com/googleapis/release-please) to automate releases:
 
-1. Gather all commits since the last git tag
-2. Analyze them against the project's semver policy
-3. Determine the appropriate version bump (patch/minor/major)
-4. Generate CHANGELOG.md entries and release notes
-5. Commit, tag, and push (triggering `build.yml` automatically)
-6. Create a GitHub Release
+1. Every push to `main` triggers release-please
+2. Release-please creates or updates a release PR based on conventional commits
+3. The release PR previews the version bump, changelog entries, and release notes
+4. Merging the release PR creates the git tag and GitHub Release
+5. The tag push triggers `build.yml` to build and publish the Docker image
 
-The workflow requires three repository secrets for Claude Code API access and a GitHub App token. The GitHub App is needed because `GITHUB_TOKEN` events do not trigger other workflows. See the workflow file for secret names and configuration details.
+Release-please determines version bumps from commit prefixes:
+- `feat:` → minor bump
+- `fix:` → patch bump
+- `deps:` → patch bump (used by Renovate for dependency updates)
+- `feat!:` or `BREAKING CHANGE:` in body → major bump
 
-**Testing**: Use `workflow_dispatch` with `dry-run: true` to validate the analysis without creating a release.
+The workflow requires two repository secrets for a GitHub App token (`RELEASE_APP_ID`, `RELEASE_APP_PRIVATE_KEY`). The App token is needed because `GITHUB_TOKEN` events do not trigger other workflows. The `ANTHROPIC_API_KEY` secret is no longer required for releases.
+
+### Conventional Commit Standards
+
+This project uses [Conventional Commits](https://www.conventionalcommits.org/) to drive automated releases via release-please. The commit type determines whether a release is created and what version bump occurs.
+
+**Releasable types** (trigger version bumps):
+
+| Type | Bump | Description |
+|------|------|-------------|
+| `feat:` | Minor | New features or capabilities |
+| `fix:` | Patch | Bug fixes, security patches |
+| `deps:` | Patch | Dependency updates (used by Renovate) |
+
+**Non-releasable types** (no version bump, hidden from changelog):
+
+`chore:`, `build:`, `ci:`, `docs:`, `perf:`, `refactor:`, `test:`
+
+These commits are included in the next release when a releasable commit is present, but do not appear in CHANGELOG.md.
+
+**Breaking changes:** Append `!` after the type (e.g., `feat!:`) or include `BREAKING CHANGE:` in the commit body to trigger a major version bump.
+
+**Scopes** are optional and informational (e.g., `fix(security):`, `deps(alpine):`). They do not affect version bumps or changelog grouping.
+
+**Examples:**
+```
+feat: add upsset.cgi access control          → minor bump
+fix(security): patch CVE-2026-XXXXX          → patch bump
+deps: update alpine base image digest        → patch bump
+ci: add path filters to workflows            → no bump
+feat!: change hosts.conf format              → major bump
+```
 
 ## Image Tagging Strategy
 
@@ -185,7 +219,7 @@ nut-cgi/
 │   ├── workflows/
 │   │   ├── build.yml       # Multi-arch build & GHCR publishing
 │   │   ├── lint.yml        # Pre-build validation
-│   │   ├── release.yml     # Automated weekly releases (Claude Code)
+│   │   ├── release.yml     # Automated releases (release-please)
 │   │   └── security.yml    # Trivy vulnerability scanning
 │   └── renovate.json       # Dependency automation config
 ├── docs/
@@ -193,6 +227,9 @@ nut-cgi/
 ├── Dockerfile              # Multi-stage Alpine 3.23 build
 ├── docker-compose.yml      # Example deployment (security hardened)
 ├── healthcheck.sh          # Three-tier health validation script
+├── release-please-config.json  # Release-please package configuration
+├── .release-please-manifest.json  # Current version tracker (managed by release-please)
+├── version.txt                 # Current version string (managed by release-please)
 ├── .dockerignore           # Build context optimization
 ├── LICENSE                 # MIT license
 └── README.md               # User-facing documentation
@@ -285,6 +322,8 @@ This project is forked from `danielb7390/nut-cgi` with these improvements:
 The migration maintains backward compatibility with `hosts.conf` format and UPS monitoring functionality.
 
 ## Semantic Versioning Policy
+
+Version bumps are determined automatically by release-please based on conventional commit prefixes (see [Conventional Commit Standards](#conventional-commit-standards) above).
 
 **Patch (v1.0.x):**
 - Alpine package updates within same minor version
