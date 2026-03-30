@@ -11,6 +11,9 @@ name: Build, Test, and Publish
       - "CLAUDE.md"
       - "LICENSE"
       - ".github/renovate.json"
+      - "CHANGELOG.md"
+      - ".release-please-manifest.json"
+      - "version.txt"
   pull_request:
     branches: ["main"]
     paths-ignore:
@@ -19,6 +22,9 @@ name: Build, Test, and Publish
       - "CLAUDE.md"
       - "LICENSE"
       - ".github/renovate.json"
+      - "CHANGELOG.md"
+      - ".release-please-manifest.json"
+      - "version.txt"
   workflow_dispatch:
     inputs:
       force-rebuild:
