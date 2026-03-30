@@ -8,8 +8,7 @@
     "on Monday"
   ],
   "semanticCommits": "enabled",
-  "semanticCommitType": "chore",
-  "semanticCommitScope": "deps",
+  "semanticCommitType": "deps",
   "commitBody": "Update {{depName}} from {{currentVersion}} to {{newVersion}}\n\n{{#if releases}}Release notes:\n{{#each releases}}- {{#if title}}{{title}}{{else}}{{version}}{{/if}}\n{{/each}}{{/if}}",
   "ignorePaths": [
     "docker-compose.yml"
@@ -18,23 +17,15 @@
     {
       "customType": "regex",
       "description": "Track NUT (Network UPS Tools) releases from GitHub",
-      "managerFilePatterns": ["Dockerfile"],
+      "managerFilePatterns": [
+        "Dockerfile"
+      ],
       "matchStrings": [
         "# NUT version to build from source\\s+ARG NUT_VERSION=(?<currentValue>.*?)\\n"
       ],
       "datasourceTemplate": "github-releases",
       "depNameTemplate": "networkupstools/nut",
       "extractVersionTemplate": "^v(?<version>.*)$"
-    },
-    {
-      "customType": "regex",
-      "description": "Track @anthropic-ai/claude-code npm package in npx commands",
-      "managerFilePatterns": [".github/workflows/**"],
-      "matchStrings": [
-        "# renovate: datasource=npm depName=@anthropic-ai/claude-code\\s+.*@anthropic-ai/claude-code@(?<currentValue>[^\\s]+)"
-      ],
-      "datasourceTemplate": "npm",
-      "depNameTemplate": "@anthropic-ai/claude-code"
     }
   ],
   "packageRules": [
