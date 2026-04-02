@@ -5,15 +5,12 @@ FROM alpine:3.23.3@sha256:25109184c71bdad752c8312a8623239686a9a2071e8825f20acb8f
 ARG NUT_VERSION=2.8.4
 
 # Install build dependencies for NUT compilation
+# Note: autoconf/automake/libtool are NOT needed — release tarballs ship pre-generated configure
 # Package versions are locked by the Alpine base image digest
 # hadolint ignore=DL3018
 RUN apk upgrade --no-cache && \
     apk add --no-cache \
     build-base \
-    autoconf \
-    automake \
-    libtool \
-    pkgconf \
     gd-dev \
     curl
 
@@ -41,9 +38,15 @@ RUN ./configure \
     --datadir=/usr/share/nut \
     --with-user=nut \
     --with-group=nut && \
-    # Parallel compilation for faster builds
-    make -j"$(nproc)" && \
-    make install DESTDIR=/build/rootfs && \
+    # Build only CGI programs and their dependencies (skip drivers, server, tools, etc.)
+    make -j"$(nproc)" -C include && \
+    make -j"$(nproc)" -C common && \
+    make -j"$(nproc)" -C clients && \
+    # Install only the components we need
+    make -C common install DESTDIR=/build/rootfs && \
+    make -C clients install DESTDIR=/build/rootfs && \
+    make -C conf install DESTDIR=/build/rootfs && \
+    make -C data install DESTDIR=/build/rootfs && \
     # Strip debug symbols from binaries for smaller image
     find /build/rootfs/usr/lib -name '*.so*' -type f -exec strip --strip-unneeded {} \; 2>/dev/null || true && \
     find /build/rootfs/usr/lib/cgi-bin -type f -exec strip --strip-unneeded {} \; 2>/dev/null || true && \
