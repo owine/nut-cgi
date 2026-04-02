@@ -5,6 +5,13 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [1.6.0](https://github.com/owine/nut-cgi/compare/v1.5.0...v1.6.0) (2026-04-02)
+
+
+### Features
+
+* optimize NUT source build for CGI-only targets ([015b386](https://github.com/owine/nut-cgi/commit/015b386d6cf93df5829c53ca4699aef4243863e1))
+
 ## [1.5.0](https://github.com/owine/nut-cgi/compare/v1.4.4...v1.5.0) (2026-03-30)
 
 
