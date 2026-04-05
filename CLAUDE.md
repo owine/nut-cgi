@@ -79,9 +79,10 @@ The Dockerfile uses a two-stage build approach:
 
 **Key Architectural Decisions:**
 
-- **Version Pinning**: Alpine base image is digest-pinned; APK package versions are locked by the base image
-  - APK packages are NOT individually version-pinned (versions are determined by the Alpine release)
+- **Version Pinning**: Alpine base image is digest-pinned; APK packages are individually version-pinned
+  - APK packages use exact version pinning (e.g., `curl=8.17.0-r1`) for deterministic builds
   - Renovate manages the base image version and digest updates
+  - When updating the Alpine base image, APK package versions must be updated to match the new Alpine release
 
 - **Non-Root User**: Runs as UID 1000 (user `nut`) by default
   - Supports `--user` override for custom UID/GID requirements
@@ -261,7 +262,7 @@ The Dockerfile configures lighttpd via sed commands:
 
 ### Version Pinning Philosophy
 
-The Alpine base image is digest-pinned (e.g., `alpine:3.23.3@sha256:...`) for exact reproducibility. APK packages are **not** individually version-pinned because their versions are determined by the Alpine release — pinning them would break when the base image updates. Renovate manages the base image version and digest.
+The Alpine base image is digest-pinned (e.g., `alpine:3.23.3@sha256:...`) for exact reproducibility. APK packages are individually version-pinned (e.g., `curl=8.17.0-r1`) following the [hassio-addons pattern](https://github.com/hassio-addons/addon-ssh) for fully deterministic builds. When updating the Alpine base image to a new version, APK package versions must also be updated to match the new Alpine release's repository. Renovate manages the base image version and digest.
 
 ## Configuration
 

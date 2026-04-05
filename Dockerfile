@@ -6,13 +6,11 @@ ARG NUT_VERSION=2.8.4
 
 # Install build dependencies for NUT compilation
 # Note: autoconf/automake/libtool are NOT needed — release tarballs ship pre-generated configure
-# Package versions are locked by the Alpine base image digest
-# hadolint ignore=DL3018
-RUN apk upgrade --no-cache && \
-    apk add --no-cache \
-    build-base \
-    gd-dev \
-    curl
+# Package versions are pinned to Alpine 3.23 repository versions
+RUN apk add --no-cache \
+    build-base=0.5-r3 \
+    gd-dev=2.3.3-r10 \
+    curl=8.17.0-r1
 
 # Download, verify checksum, and extract NUT source
 WORKDIR /build
@@ -69,15 +67,13 @@ LABEL org.opencontainers.image.title="nut-cgi" \
       org.opencontainers.image.licenses="MIT"
 
 # Install runtime dependencies
-# Package versions are locked by the Alpine base image digest
-# hadolint ignore=DL3018
-RUN apk upgrade --no-cache && \
-    apk add --no-cache \
-    lighttpd \
-    curl \
-    openssl \
-    gd \
-    zlib && \
+# Package versions are pinned to Alpine 3.23 repository versions
+RUN apk add --no-cache \
+    lighttpd=1.4.82-r0 \
+    curl=8.17.0-r1 \
+    openssl=3.5.5-r0 \
+    gd=2.3.3-r10 \
+    zlib=1.3.1-r2 && \
     # Verify installations
     lighttpd -v && \
     curl --version
