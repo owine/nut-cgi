@@ -5,6 +5,14 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [1.7.0](https://github.com/owine/nut-cgi/compare/v1.6.0...v1.7.0) (2026-04-05)
+
+
+### Features
+
+* add Repology datasource for automated APK package version tracking ([b163fca](https://github.com/owine/nut-cgi/commit/b163fcae7209d60db1dfc495e34d1e7ef8e10d5e))
+* pin APK packages to exact versions for deterministic builds ([40b9102](https://github.com/owine/nut-cgi/commit/40b91022ff2ad4ae87a645a02853e81d2f881436))
+
 ## [1.6.0](https://github.com/owine/nut-cgi/compare/v1.5.0...v1.6.0) (2026-04-02)
 
 
