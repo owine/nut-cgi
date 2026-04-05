@@ -16,6 +16,20 @@
   "customManagers": [
     {
       "customType": "regex",
+      "description": "Track Alpine APK package versions via Repology",
+      "managerFilePatterns": [
+        "Dockerfile"
+      ],
+      "matchStringsStrategy": "any",
+      "matchStrings": [
+        "\\s\\s(?<package>[a-z0-9][a-z0-9-_]+)=(?<currentValue>[a-z0-9-_.]+)\\s+"
+      ],
+      "versioningTemplate": "loose",
+      "datasourceTemplate": "repology",
+      "depNameTemplate": "alpine_3_23/{{package}}"
+    },
+    {
+      "customType": "regex",
       "description": "Track NUT (Network UPS Tools) releases from GitHub",
       "managerFilePatterns": [
         "Dockerfile"
@@ -30,20 +44,42 @@
   ],
   "packageRules": [
     {
-      "description": "Alpine base image - auto-merge patch and digest updates",
+      "description": "Alpine base image digest updates - auto-merge (same version, no APK changes)",
       "matchDatasources": [
         "docker"
       ],
       "matchPackageNames": [
         "alpine"
       ],
-      "groupName": "alpine base image",
-      "automerge": true,
-      "automergeType": "pr",
       "matchUpdateTypes": [
-        "patch",
         "digest"
-      ]
+      ],
+      "groupName": "alpine base image digest",
+      "automerge": true,
+      "automergeType": "pr"
+    },
+    {
+      "description": "Alpine base image version updates - manual review (APK pins and Repology depNameTemplate must be updated)",
+      "matchDatasources": [
+        "docker"
+      ],
+      "matchPackageNames": [
+        "alpine"
+      ],
+      "matchUpdateTypes": [
+        "minor",
+        "patch"
+      ],
+      "groupName": "alpine base image version",
+      "automerge": false
+    },
+    {
+      "description": "Alpine APK packages - auto-merge (patch-level updates within same Alpine release)",
+      "matchDatasources": [
+        "repology"
+      ],
+      "automerge": true,
+      "automergeType": "pr"
     },
     {
       "description": "NUT source version - manual review required",

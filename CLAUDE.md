@@ -140,7 +140,9 @@ Four GitHub Actions workflows provide comprehensive automation:
 
 Renovate bot automatically manages updates with this strategy:
 
-- **Alpine base image**: Auto-merge patch/digest updates (APK versions follow the base image)
+- **Alpine APK packages**: Tracked via [Repology](https://repology.org/) datasource, auto-merge updates
+- **Alpine base image digest**: Auto-merge (same version rebuild, no APK changes)
+- **Alpine base image version**: Manual review required (APK pins and Repology `depNameTemplate` must be updated)
 - **GitHub Actions**: Auto-merge minor/patch updates
 - **Non-major dependencies**: Catch-all group for remaining deps, auto-merge minor/patch
 - **NUT source**: Manual review required
@@ -149,6 +151,11 @@ Renovate bot automatically manages updates with this strategy:
 - **Security overrides**: Immediate processing regardless of schedule
 
 All auto-merges require passing CI/CD checks.
+
+**Alpine version bump procedure:** When upgrading Alpine (e.g., 3.23 → 3.24), update all three in the same PR:
+1. The `FROM alpine:` base image tag and digest in `Dockerfile`
+2. All APK package version pins in `Dockerfile` (query new versions with `apk policy`)
+3. The `depNameTemplate` in `.github/renovate.json` (e.g., `alpine_3_23` → `alpine_3_24`)
 
 ### Automated Releases
 
