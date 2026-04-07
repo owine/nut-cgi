@@ -12,6 +12,7 @@
   ],
   "semanticCommits": "enabled",
   "semanticCommitType": "deps",
+  "semanticCommitScope": null,
   "commitBody": "Update {{depName}} from {{currentVersion}} to {{newVersion}}\n\n{{#if releases}}Release notes:\n{{#each releases}}- {{#if title}}{{title}}{{else}}{{version}}{{/if}}\n{{/each}}{{/if}}",
   "ignorePaths": [
     "docker-compose.yml"
@@ -61,13 +62,14 @@
       "automerge": false
     },
     {
-      "description": "NUT source version - manual review required",
+      "description": "NUT source version - feat prefix for minor bump, manual review required",
       "matchDatasources": [
         "github-releases"
       ],
       "matchPackageNames": [
         "networkupstools/nut"
       ],
+      "semanticCommitType": "feat",
       "automerge": false
     },
     {
