@@ -7,6 +7,9 @@
   "schedule": [
     "on Monday"
   ],
+  "automergeSchedule": [
+    "at any time"
+  ],
   "semanticCommits": "enabled",
   "semanticCommitType": "deps",
   "commitBody": "Update {{depName}} from {{currentVersion}} to {{newVersion}}\n\n{{#if releases}}Release notes:\n{{#each releases}}- {{#if title}}{{title}}{{else}}{{version}}{{/if}}\n{{/each}}{{/if}}",
@@ -44,21 +47,6 @@
   ],
   "packageRules": [
     {
-      "description": "Alpine base image digest updates - auto-merge (same version, no APK changes)",
-      "matchDatasources": [
-        "docker"
-      ],
-      "matchPackageNames": [
-        "alpine"
-      ],
-      "matchUpdateTypes": [
-        "digest"
-      ],
-      "groupName": "alpine base image digest",
-      "automerge": true,
-      "automergeType": "pr"
-    },
-    {
       "description": "Alpine base image version updates - manual review (APK pins and Repology depNameTemplate must be updated)",
       "matchDatasources": [
         "docker"
@@ -70,16 +58,7 @@
         "minor",
         "patch"
       ],
-      "groupName": "alpine base image version",
       "automerge": false
-    },
-    {
-      "description": "Alpine APK packages - auto-merge (patch-level updates within same Alpine release)",
-      "matchDatasources": [
-        "repology"
-      ],
-      "automerge": true,
-      "automergeType": "pr"
     },
     {
       "description": "NUT source version - manual review required",
@@ -89,19 +68,26 @@
       "matchPackageNames": [
         "networkupstools/nut"
       ],
-      "groupName": "nut source",
       "automerge": false
     },
     {
-      "description": "All non-major updates grouped together and auto-merged",
+      "description": "Group all non-major updates into a single PR",
       "matchUpdateTypes": [
         "minor",
         "patch",
-        "digest"
+        "digest",
+        "pin"
       ],
-      "groupName": "non-major dependencies",
+      "groupName": "all non-major dependencies",
       "automerge": true,
       "automergeType": "pr"
+    },
+    {
+      "description": "Major updates - separate PRs for review",
+      "matchUpdateTypes": [
+        "major"
+      ],
+      "automerge": false
     }
   ],
   "vulnerabilityAlerts": {
