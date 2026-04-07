@@ -5,6 +5,18 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [1.8.0](https://github.com/owine/nut-cgi/compare/v1.7.0...v1.8.0) (2026-04-07)
+
+
+### Features
+
+* upgrade NUT to v2.8.5 ([7a650a8](https://github.com/owine/nut-cgi/commit/7a650a882bbc360fc98c00f89b1e6459b143bb35))
+
+
+### Bug Fixes
+
+* correct semantic commit prefix and add feat: for NUT updates ([58f1e71](https://github.com/owine/nut-cgi/commit/58f1e7114c63acc04bb3b673fd3cd026668a1c03))
+
 ## [1.7.0](https://github.com/owine/nut-cgi/compare/v1.6.0...v1.7.0) (2026-04-05)
 
 
