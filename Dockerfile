@@ -1,5 +1,5 @@
 # Multi-stage build for minimal runtime image
-FROM alpine:3.23.3@sha256:25109184c71bdad752c8312a8623239686a9a2071e8825f20acb8f2198c3f659 AS builder
+FROM alpine:3.23.4@sha256:5b10f432ef3da1b8d4c7eb6c487f2f5a8f096bc91145e68878dd4a5019afde11 AS builder
 
 # NUT version to build from source
 ARG NUT_VERSION=2.8.5
@@ -57,7 +57,7 @@ RUN ./configure \
 # ============================================================================
 # Runtime Stage - Minimal footprint
 # ============================================================================
-FROM alpine:3.23.3@sha256:25109184c71bdad752c8312a8623239686a9a2071e8825f20acb8f2198c3f659
+FROM alpine:3.23.4@sha256:5b10f432ef3da1b8d4c7eb6c487f2f5a8f096bc91145e68878dd4a5019afde11
 
 # Image metadata
 LABEL org.opencontainers.image.title="nut-cgi" \
@@ -71,7 +71,7 @@ LABEL org.opencontainers.image.title="nut-cgi" \
 RUN apk add --no-cache \
     lighttpd=1.4.82-r0 \
     curl=8.17.0-r1 \
-    openssl=3.5.5-r0 \
+    openssl=3.5.6-r0 \
     gd=2.3.3-r10 \
     zlib=1.3.2-r0 && \
     # Verify installations
