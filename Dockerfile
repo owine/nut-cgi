@@ -71,6 +71,7 @@ LABEL org.opencontainers.image.title="nut-cgi" \
 RUN apk add --no-cache \
     lighttpd=1.4.82-r0 \
     curl=8.17.0-r1 \
+    nghttp2-libs=1.69.0-r0 \
     openssl=3.5.6-r0 \
     gd=2.3.3-r10 \
     libxpm=3.5.19-r0 \
