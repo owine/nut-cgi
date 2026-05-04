@@ -5,6 +5,13 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [1.8.2](https://github.com/owine/nut-cgi/compare/v1.8.1...v1.8.2) (2026-05-04)
+
+
+### Bug Fixes
+
+* **security:** pin nghttp2-libs to 1.69.0-r0 for CVE-2026-27135 ([f88a7b9](https://github.com/owine/nut-cgi/commit/f88a7b9703f2d67ded5d2f84fdca20df8c5e1ac5))
+
 ## [1.8.1](https://github.com/owine/nut-cgi/compare/v1.8.0...v1.8.1) (2026-04-27)
 
 
