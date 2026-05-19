@@ -10,7 +10,7 @@ ARG NUT_VERSION=2.8.5
 RUN apk add --no-cache \
     build-base=0.5-r3 \
     gd-dev=2.3.3-r10 \
-    curl=8.17.0-r1
+    curl=8.19.0-r0
 
 # Download, verify checksum, and extract NUT source
 WORKDIR /build
@@ -70,7 +70,7 @@ LABEL org.opencontainers.image.title="nut-cgi" \
 # Package versions are pinned to Alpine 3.23 repository versions
 RUN apk add --no-cache \
     lighttpd=1.4.82-r0 \
-    curl=8.17.0-r1 \
+    curl=8.19.0-r0 \
     nghttp2-libs=1.69.0-r0 \
     openssl=3.5.6-r0 \
     gd=2.3.3-r10 \
