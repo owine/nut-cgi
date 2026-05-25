@@ -11,15 +11,12 @@ name: Lint
       - "LICENSE"
       - "CHANGELOG.md"
       - ".github/renovate.json"
+  # Run on every PR (no paths-ignore): the branch ruleset requires the four
+  # lint jobs to pass, so a docs-only PR that skips the workflow would leave
+  # them expected-but-missing and permanently block merge. Linting is fast
+  # (~10-30s) so the cost of running on every PR is trivial.
   pull_request:
     branches: ["main"]
-    paths-ignore:
-      - "docs/**"
-      - "README.md"
-      - "CLAUDE.md"
-      - "LICENSE"
-      - "CHANGELOG.md"
-      - ".github/renovate.json"
   workflow_dispatch:
 
 concurrency:
