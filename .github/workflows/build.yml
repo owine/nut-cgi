@@ -42,8 +42,12 @@ jobs:
   # Detect whether the change set touches image-affecting files. Used to
   # gate the heavy multi-arch `build` job on PRs so docs/spec/release-please
   # only PRs skip the build entirely while `ci-pass` still passes. On push
-  # to main (and tags) the workflow always builds — see the `build` if:.
+  # to main (and tags) the workflow always builds — see the `build` if: —
+  # so we skip this job entirely on non-PR events to avoid a wasted
+  # checkout/paths-filter and to prevent a transient `changes` failure
+  # from blocking push/tag image builds.
   changes:
+    if: github.event_name == 'pull_request'
     runs-on: ubuntu-24.04
     outputs:
       image: ${{ steps.filter.outputs.image }}
@@ -71,8 +75,14 @@ jobs:
 
   build:
     name: Build Multi-Arch Image
+    # `needs: changes` is safe even on push/tag because `changes` is gated
+    # PR-only above — it skips on push, and a skipped need still satisfies
+    # the dependency. The if: short-circuits to true on non-PR events so
+    # the empty `changes.outputs.image` isn't consulted there.
     needs: changes
-    if: github.event_name != 'pull_request' || needs.changes.outputs.image == 'true'
+    if: |
+      github.event_name != 'pull_request' ||
+      needs.changes.outputs.image == 'true'
     runs-on: ubuntu-24.04
     permissions:
       contents: read
@@ -456,7 +466,9 @@ jobs:
           # (image digests, tokens) so restricting the dump to results keeps
           # the diagnostic ("which job failed?") without the leak risk.
           echo "$NEEDS_JSON" | jq 'map_values({result})'
-          if echo "$NEEDS_JSON" | jq -e 'any(.[].result; . == "failure" or . == "cancelled")' >/dev/null; then
-            echo "::error::One or more required jobs failed or were cancelled."
+          # Whitelist acceptable results so future result types ('neutral',
+          # 'action_required', etc.) fail closed instead of silently passing.
+          if echo "$NEEDS_JSON" | jq -e 'any(.[].result; . != "success" and . != "skipped")' >/dev/null; then
+            echo "::error::One or more required jobs did not succeed or skip."
             exit 1
           fi
