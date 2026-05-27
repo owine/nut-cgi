@@ -15,18 +15,13 @@ name: Build, Test, and Publish
       - ".release-please-manifest.json"
       - "release-please-config.json"
       - "version.txt"
+  # Run on every PR (no paths-ignore): the branch ruleset requires `ci-pass`
+  # to report, and a workflow-level paths-ignore skips the whole run so the
+  # aggregator never reports — leaving the PR permanently BLOCKED. Filtering
+  # now lives in the `changes` job below, which gates the heavy `build` job;
+  # docs-only PRs let `build` skip and `ci-pass` still passes.
   pull_request:
     branches: ["main"]
-    paths-ignore:
-      - "docs/**"
-      - "README.md"
-      - "CLAUDE.md"
-      - "LICENSE"
-      - ".github/renovate.json"
-      - "CHANGELOG.md"
-      - ".release-please-manifest.json"
-      - "release-please-config.json"
-      - "version.txt"
   workflow_dispatch:
     inputs:
       force-rebuild:
@@ -44,8 +39,40 @@ env:
   IMAGE_NAME: ${{ github.repository }}
 
 jobs:
+  # Detect whether the change set touches image-affecting files. Used to
+  # gate the heavy multi-arch `build` job on PRs so docs/spec/release-please
+  # only PRs skip the build entirely while `ci-pass` still passes. On push
+  # to main (and tags) the workflow always builds — see the `build` if:.
+  changes:
+    runs-on: ubuntu-24.04
+    outputs:
+      image: ${{ steps.filter.outputs.image }}
+    steps:
+      - uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6.0.2
+      - uses: dorny/paths-filter@fbd0ab8f3e69293af611ebaee6363fc25e6d187d # v4.0.1
+        id: filter
+        with:
+          # `every`: a changed file matches a filter only if it satisfies ALL
+          # rules. Without this, dorny's default OR semantics make the leading
+          # `**` match everything, so the `!`-exclusions are no-ops and the
+          # filter is always true. With `every`, a file must match `**` AND
+          # none of the `!` excludes.
+          predicate-quantifier: 'every'
+          filters: |
+            image:
+              - '**'
+              - '!docs/**'
+              - '!**/*.md'
+              - '!LICENSE'
+              - '!.github/renovate.json'
+              - '!.release-please-manifest.json'
+              - '!release-please-config.json'
+              - '!version.txt'
+
   build:
     name: Build Multi-Arch Image
+    needs: changes
+    if: github.event_name != 'pull_request' || needs.changes.outputs.image == 'true'
     runs-on: ubuntu-24.04
     permissions:
       contents: read
@@ -407,4 +434,29 @@ jobs:
             echo "Promoted to: $PROMOTION_TAGS"
           else
             echo "No additional tags applied"
+          fi
+
+  # Stable-named aggregator so the branch ruleset can require a single
+  # `ci-pass` check regardless of how the underlying matrix/conditional
+  # jobs evolve. Treats SKIPPED as success: docs-only PRs intentionally
+  # skip `build` (and therefore `test`/`scan`/`promote`) via `changes`,
+  # and the aggregator must not block those merges. Mirrors the pattern
+  # used in owine/house-manager#191 and owine/trip-tracker ci.yml.
+  ci-pass:
+    needs: [changes, build, test, scan, promote]
+    if: always()
+    runs-on: ubuntu-24.04
+    steps:
+      - name: All required jobs passed or were appropriately skipped
+        env:
+          NEEDS_JSON: ${{ toJSON(needs) }}
+        run: |
+          # Log only the per-job `result` field, never the full `needs` blob.
+          # `outputs` declared by upstream jobs can carry sensitive values
+          # (image digests, tokens) so restricting the dump to results keeps
+          # the diagnostic ("which job failed?") without the leak risk.
+          echo "$NEEDS_JSON" | jq 'map_values({result})'
+          if echo "$NEEDS_JSON" | jq -e 'any(.[].result; . == "failure" or . == "cancelled")' >/dev/null; then
+            echo "::error::One or more required jobs failed or were cancelled."
+            exit 1
           fi
