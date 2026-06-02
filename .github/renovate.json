@@ -11,10 +11,6 @@
     "docker-compose.yml"
   ],
   "vulnerabilityAlerts": {
-    "labels": ["security"],
-    "minimumReleaseAge": "0 days",
-    "schedule": ["at any time"],
-    "automerge": true,
     "assignees": ["owine"]
   },
   "customManagers": [
