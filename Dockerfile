@@ -72,7 +72,7 @@ RUN apk add --no-cache \
     lighttpd=1.4.82-r0 \
     curl=8.19.0-r0 \
     nghttp2-libs=1.69.0-r0 \
-    openssl=3.5.6-r0 \
+    openssl=3.5.7-r0 \
     gd=2.3.3-r10 \
     libxpm=3.5.19-r0 \
     zlib=1.3.2-r0 && \
