@@ -6,11 +6,11 @@ ARG NUT_VERSION=2.8.5
 
 # Install build dependencies for NUT compilation
 # Note: autoconf/automake/libtool are NOT needed — release tarballs ship pre-generated configure
-# Package versions are pinned to Alpine 3.23 repository versions
+# Package versions are pinned to Alpine 3.24 repository versions
 RUN apk add --no-cache \
-    build-base=0.5-r3 \
+    build-base=0.5-r4 \
     gd-dev=2.3.3-r10 \
-    curl=8.19.0-r0
+    curl=8.20.0-r1
 
 # Download, verify checksum, and extract NUT source
 WORKDIR /build
@@ -67,15 +67,17 @@ LABEL org.opencontainers.image.title="nut-cgi" \
       org.opencontainers.image.licenses="MIT"
 
 # Install runtime dependencies
-# Package versions are pinned to Alpine 3.23 repository versions
+# Package versions are pinned to Alpine 3.24 repository versions.
+# Direct deps (lighttpd, curl, gd) are pinned. nghttp2-libs/libxpm/zlib are no
+# longer pinned individually — apk resolves them transitively and the base image
+# already ships the CVE-patched versions.
+# openssl stays pinned: the 3.24.0 base image lags the repo (3.5.6-r0 vs
+# 3.5.7-r0), and curl/lighttpd would otherwise keep the older libcrypto3/libssl3.
 RUN apk add --no-cache \
-    lighttpd=1.4.82-r0 \
-    curl=8.19.0-r0 \
-    nghttp2-libs=1.69.0-r0 \
-    openssl=3.5.7-r0 \
+    lighttpd=1.4.82-r1 \
+    curl=8.20.0-r1 \
     gd=2.3.3-r10 \
-    libxpm=3.5.19-r0 \
-    zlib=1.3.2-r0 && \
+    openssl=3.5.7-r0 && \
     # Verify installations
     lighttpd -v && \
     curl --version
