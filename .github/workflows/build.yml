@@ -177,7 +177,12 @@ jobs:
       contents: read
       packages: write
     outputs:
-      image-sha-tag: ${{ steps.meta.outputs.tags }}
+      # `tags` is a newline-separated list; the manifest-list step below
+      # consumes all of it, but this output and the inspect step are
+      # single-ref consumers (docker pull / Trivy / imagetools inspect), so
+      # pin to the first tag to keep the contract unambiguous if a second
+      # tag type is ever added to the meta block.
+      image-sha-tag: ${{ fromJSON(steps.meta.outputs.json).tags[0] }}
       image-digest: ${{ steps.inspect.outputs.digest }}
     steps:
       - name: Download digests
@@ -224,7 +229,7 @@ jobs:
       - name: Inspect image
         id: inspect
         env:
-          IMAGE_TAG: ${{ steps.meta.outputs.tags }}
+          IMAGE_TAG: ${{ fromJSON(steps.meta.outputs.json).tags[0] }}
         run: |
           docker buildx imagetools inspect "$IMAGE_TAG"
           digest=$(docker buildx imagetools inspect "$IMAGE_TAG" \
