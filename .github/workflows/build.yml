@@ -48,14 +48,19 @@ jobs:
   # chain: a skipped `changes` would skip `build`, `merge`, and everything
   # after — silently, since `ci-pass` treats skips as success. (That is the
   # #57 regression: making `changes` PR-only stopped all push/tag publishing.)
-  # On push/tag the paths-filter is pointless, so the `force` step short-
-  # circuits to image=true; the filter only runs on PRs.
+  # On non-PR events (push, tag, manual workflow_dispatch) the paths-filter is
+  # pointless, so the `force` step short-circuits to image=true; the filter
+  # only runs on PRs. These two branches are exhaustive over the configured
+  # `on:` triggers — every event either is a `pull_request` (filter) or is not
+  # (force). If a PR-like trigger is ever added (e.g. pull_request_target),
+  # add it to the filter's `if:` so `image` is never left empty (empty ==
+  # silent skip, the very failure mode this job exists to prevent).
   changes:
     runs-on: ubuntu-24.04
     outputs:
       image: ${{ steps.filter.outputs.image || steps.force.outputs.image }}
     steps:
-      - name: Force build on push/tag
+      - name: Force build on non-PR events (push, tag, manual dispatch)
         id: force
         if: github.event_name != 'pull_request'
         run: echo "image=true" >> "$GITHUB_OUTPUT"
