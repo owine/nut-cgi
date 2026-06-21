@@ -39,21 +39,35 @@ env:
   IMAGE_NAME: ${{ github.repository }}
 
 jobs:
-  # Detect whether the change set touches image-affecting files. Used to
-  # gate the heavy multi-arch `build` job on PRs so docs/spec/release-please
-  # only PRs skip the build entirely while `ci-pass` still passes. On push
-  # to main (and tags) the workflow always builds — see the `build` if: —
-  # so we skip this job entirely on non-PR events to avoid a wasted
-  # checkout/paths-filter and to prevent a transient `changes` failure
-  # from blocking push/tag image builds.
+  # Detect whether the change set touches image-affecting files. Used to gate
+  # the heavy multi-arch `build` job on PRs so docs/spec/release-please-only
+  # PRs skip the build while `ci-pass` still passes.
+  #
+  # This job ALWAYS runs (no top-level `if:`). It must not be skipped, because
+  # GitHub propagates a skipped job's status transitively down the `needs`
+  # chain: a skipped `changes` would skip `build`, `merge`, and everything
+  # after — silently, since `ci-pass` treats skips as success. (That is the
+  # #57 regression: making `changes` PR-only stopped all push/tag publishing.)
+  # On non-PR events (push, tag, manual workflow_dispatch) the paths-filter is
+  # pointless, so the `force` step short-circuits to image=true; the filter
+  # only runs on PRs. These two branches are exhaustive over the configured
+  # `on:` triggers — every event either is a `pull_request` (filter) or is not
+  # (force). If a PR-like trigger is ever added (e.g. pull_request_target),
+  # add it to the filter's `if:` so `image` is never left empty (empty ==
+  # silent skip, the very failure mode this job exists to prevent).
   changes:
-    if: github.event_name == 'pull_request'
     runs-on: ubuntu-24.04
     outputs:
-      image: ${{ steps.filter.outputs.image }}
+      image: ${{ steps.filter.outputs.image || steps.force.outputs.image }}
     steps:
-      - uses: actions/checkout@df4cb1c069e1874edd31b4311f1884172cec0e10 # v6.0.3
-      - uses: dorny/paths-filter@fbd0ab8f3e69293af611ebaee6363fc25e6d187d # v4.0.1
+      - name: Force build on non-PR events (push, tag, manual dispatch)
+        id: force
+        if: github.event_name != 'pull_request'
+        run: echo "image=true" >> "$GITHUB_OUTPUT"
+      - if: github.event_name == 'pull_request'
+        uses: actions/checkout@df4cb1c069e1874edd31b4311f1884172cec0e10 # v6.0.3
+      - if: github.event_name == 'pull_request'
+        uses: dorny/paths-filter@fbd0ab8f3e69293af611ebaee6363fc25e6d187d # v4.0.1
         id: filter
         with:
           # `every`: a changed file matches a filter only if it satisfies ALL
@@ -75,18 +89,11 @@ jobs:
 
   build:
     name: Build ${{ matrix.platform }}
-    # `changes` is PR-only, so it is SKIPPED on push/tag. GitHub skips a
-    # dependent whose `if:` has no status function whenever a needed job did
-    # not succeed (skipped counts as not-succeeded) — regardless of the if:
-    # boolean. The leading `!cancelled()` is that status function: it switches
-    # GitHub to evaluating the if: expression on its own, so the skipped
-    # `changes` no longer suppresses the build. Without it, push/tag builds
-    # silently skip and no image is published (regressed in #57).
+    # `changes` always succeeds and emits image=true on push/tag, so a plain
+    # success-gated condition works here: no skipped dependency to propagate,
+    # no status function needed. Skips only on docs-only PRs (image=false).
     needs: changes
-    if: |
-      !cancelled() &&
-      (github.event_name != 'pull_request' ||
-       needs.changes.outputs.image == 'true')
+    if: needs.changes.outputs.image == 'true'
     # Native per-arch runners eliminate QEMU emulation of the arm64 NUT C
     # compile, which dominated wall-clock under the old single-job
     # multi-platform build. amd64 builds on the standard x86 runner, arm64 on
