@@ -75,14 +75,18 @@ jobs:
 
   build:
     name: Build ${{ matrix.platform }}
-    # `needs: changes` is safe even on push/tag because `changes` is gated
-    # PR-only above — it skips on push, and a skipped need still satisfies
-    # the dependency. The if: short-circuits to true on non-PR events so
-    # the empty `changes.outputs.image` isn't consulted there.
+    # `changes` is PR-only, so it is SKIPPED on push/tag. GitHub skips a
+    # dependent whose `if:` has no status function whenever a needed job did
+    # not succeed (skipped counts as not-succeeded) — regardless of the if:
+    # boolean. The leading `!cancelled()` is that status function: it switches
+    # GitHub to evaluating the if: expression on its own, so the skipped
+    # `changes` no longer suppresses the build. Without it, push/tag builds
+    # silently skip and no image is published (regressed in #57).
     needs: changes
     if: |
-      github.event_name != 'pull_request' ||
-      needs.changes.outputs.image == 'true'
+      !cancelled() &&
+      (github.event_name != 'pull_request' ||
+       needs.changes.outputs.image == 'true')
     # Native per-arch runners eliminate QEMU emulation of the arm64 NUT C
     # compile, which dominated wall-clock under the old single-job
     # multi-platform build. amd64 builds on the standard x86 runner, arm64 on
