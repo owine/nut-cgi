@@ -74,7 +74,7 @@ jobs:
               - '!version.txt'
 
   build:
-    name: Build Multi-Arch Image
+    name: Build ${{ matrix.platform }}
     # `needs: changes` is safe even on push/tag because `changes` is gated
     # PR-only above — it skips on push, and a skipped need still satisfies
     # the dependency. The if: short-circuits to true on non-PR events so
@@ -83,26 +83,114 @@ jobs:
     if: |
       github.event_name != 'pull_request' ||
       needs.changes.outputs.image == 'true'
-    runs-on: ubuntu-24.04
+    # Native per-arch runners eliminate QEMU emulation of the arm64 NUT C
+    # compile, which dominated wall-clock under the old single-job
+    # multi-platform build. amd64 builds on the standard x86 runner, arm64 on
+    # GitHub's free public-repo arm runner, and both legs run in parallel.
+    runs-on: ${{ matrix.runner }}
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - platform: linux/amd64
+            runner: ubuntu-24.04
+            arch: amd64
+          - platform: linux/arm64
+            runner: ubuntu-24.04-arm
+            arch: arm64
     permissions:
       contents: read
       packages: write
       id-token: write
-    outputs:
-      image-sha-tag: ${{ steps.meta.outputs.tags }}
-      image-digest: ${{ steps.build.outputs.digest }}
     steps:
       - name: Checkout code
         uses: actions/checkout@df4cb1c069e1874edd31b4311f1884172cec0e10 # v6.0.3
-
-      - name: Set up QEMU
-        uses: docker/setup-qemu-action@06116385d9baf250c9f4dcb4858b16962ea869c3 # v4.1.0
 
       - name: Set up Docker Buildx
         uses: docker/setup-buildx-action@d7f5e7f509e45cec5c76c4d5afdd7de93d0b3df5 # v4.1.0
 
       - name: Log in to GitHub Container Registry
         if: github.event_name != 'pull_request'
+        uses: docker/login-action@650006c6eb7dba73a995cc03b0b2d7f5ca915bee # v4.2.0
+        with:
+          registry: ${{ env.REGISTRY }}
+          username: ${{ github.actor }}
+          password: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Generate labels
+        id: meta
+        uses: docker/metadata-action@80c7e94dd9b9319bd5eb7a0e0fe9291e23a2a2e9 # v6.1.0
+        with:
+          images: ${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}
+
+      - name: Build and push by digest
+        id: build
+        uses: docker/build-push-action@f9f3042f7e2789586610d6e8b85c8f03e5195baf # v7.2.0
+        with:
+          context: .
+          file: ./Dockerfile
+          platforms: ${{ matrix.platform }}
+          labels: ${{ steps.meta.outputs.labels }}
+          # Per-arch cache scope: the native amd64 and arm64 runs must not
+          # clobber each other's gha cache entries.
+          cache-from: type=gha,scope=${{ matrix.arch }}
+          cache-to: type=gha,mode=max,scope=${{ matrix.arch }}
+          provenance: ${{ github.event_name != 'pull_request' }}
+          sbom: ${{ github.event_name != 'pull_request' }}
+          no-cache: ${{ github.event.inputs.force-rebuild == 'true' }}
+          # On push/tag: push each arch by digest (no tag yet) so the merge
+          # job can assemble the manifest list. On PRs: build only (cacheonly)
+          # to validate both arches compile, producing nothing to push.
+          outputs: >-
+            ${{ github.event_name != 'pull_request' && format(
+            'type=image,name={0}/{1},push-by-digest=true,name-canonical=true,push=true',
+            env.REGISTRY, env.IMAGE_NAME) || 'type=cacheonly' }}
+
+      - name: Export digest
+        if: github.event_name != 'pull_request'
+        env:
+          DIGEST: ${{ steps.build.outputs.digest }}
+        run: |
+          mkdir -p /tmp/digests
+          # Filename is the bare digest hex; the merge job reconstructs the
+          # ${image}@sha256:${hex} ref from it.
+          touch "/tmp/digests/${DIGEST#sha256:}"
+
+      - name: Upload digest
+        if: github.event_name != 'pull_request'
+        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
+        with:
+          name: digests-${{ matrix.arch }}
+          path: /tmp/digests/*
+          if-no-files-found: error
+          retention-days: 1
+
+  merge:
+    name: Merge Multi-Arch Manifest
+    # Assembles the per-arch digests into a single manifest list tagged with
+    # the sha tag the downstream test/scan/promote jobs consume. Push/tag only;
+    # PRs never push, so there is nothing to merge.
+    needs: build
+    if: github.event_name != 'pull_request'
+    runs-on: ubuntu-24.04
+    permissions:
+      contents: read
+      packages: write
+    outputs:
+      image-sha-tag: ${{ steps.meta.outputs.tags }}
+      image-digest: ${{ steps.inspect.outputs.digest }}
+    steps:
+      - name: Download digests
+        uses: actions/download-artifact@3e5f45b2cfb9172054b4087a40e8e0b5a5461e7c # v8.0.1
+        with:
+          path: /tmp/digests
+          pattern: digests-*
+          merge-multiple: true
+
+      - name: Set up Docker Buildx
+        uses: docker/setup-buildx-action@d7f5e7f509e45cec5c76c4d5afdd7de93d0b3df5 # v4.1.0
+
+      - name: Log in to GitHub Container Registry
         uses: docker/login-action@650006c6eb7dba73a995cc03b0b2d7f5ca915bee # v4.2.0
         with:
           registry: ${{ env.REGISTRY }}
@@ -118,29 +206,31 @@ jobs:
             # Build with SHA tag only - promote later after testing
             type=sha,prefix=sha-
 
-      - name: Build and push Docker image
-        id: build
-        uses: docker/build-push-action@f9f3042f7e2789586610d6e8b85c8f03e5195baf # v7.2.0
-        with:
-          context: .
-          file: ./Dockerfile
-          platforms: linux/amd64,linux/arm64
-          push: ${{ github.event_name != 'pull_request' }}
-          tags: ${{ steps.meta.outputs.tags }}
-          labels: ${{ steps.meta.outputs.labels }}
-          cache-from: type=gha
-          cache-to: type=gha,mode=max
-          provenance: true
-          sbom: true
-          no-cache: ${{ github.event.inputs.force-rebuild == 'true' }}
-
-      - name: Image built
+      - name: Create manifest list and push
+        working-directory: /tmp/digests
         env:
-          IMAGE_TAGS: ${{ steps.meta.outputs.tags }}
-          IMAGE_DIGEST: ${{ steps.build.outputs.digest }}
+          IMAGE_FULL: ${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}
         run: |
-          echo "Image built and tagged: $IMAGE_TAGS"
-          echo "Image digest: $IMAGE_DIGEST"
+          refs=""
+          for digest_file in *; do
+            refs="$refs ${IMAGE_FULL}@sha256:${digest_file}"
+          done
+          tags=$(jq -cr '.tags | map("-t " + .) | join(" ")' <<< "$DOCKER_METADATA_OUTPUT_JSON")
+          # Intentional word-splitting: $tags expands to "-t <tag>" pairs and
+          # $refs to space-separated source digests.
+          # shellcheck disable=SC2086
+          docker buildx imagetools create $tags $refs
+
+      - name: Inspect image
+        id: inspect
+        env:
+          IMAGE_TAG: ${{ steps.meta.outputs.tags }}
+        run: |
+          docker buildx imagetools inspect "$IMAGE_TAG"
+          digest=$(docker buildx imagetools inspect "$IMAGE_TAG" \
+            --format '{{json .Manifest.Digest}}' | tr -d '"')
+          echo "digest=$digest" >> "$GITHUB_OUTPUT"
+          echo "Manifest list pushed: $IMAGE_TAG ($digest)"
 
   test:
     name: Functional Testing
@@ -148,7 +238,7 @@ jobs:
     permissions:
       contents: read
       packages: read
-    needs: build
+    needs: merge
     if: github.event_name != 'pull_request'
     steps:
       - name: Checkout code
@@ -163,7 +253,7 @@ jobs:
 
       - name: Pull built image
         env:
-          IMAGE_TAG: ${{ needs.build.outputs.image-sha-tag }}
+          IMAGE_TAG: ${{ needs.merge.outputs.image-sha-tag }}
         run: |
           echo "Pulling image: $IMAGE_TAG"
           docker pull "$IMAGE_TAG"
@@ -317,7 +407,7 @@ jobs:
   scan:
     name: Security Scan
     runs-on: ubuntu-24.04
-    needs: build
+    needs: merge
     if: github.event_name != 'pull_request'
     permissions:
       contents: read
@@ -336,7 +426,7 @@ jobs:
 
       - name: Pull built image
         env:
-          IMAGE_TAG: ${{ needs.build.outputs.image-sha-tag }}
+          IMAGE_TAG: ${{ needs.merge.outputs.image-sha-tag }}
         run: |
           echo "Pulling image for scanning: $IMAGE_TAG"
           docker pull "$IMAGE_TAG"
@@ -344,7 +434,7 @@ jobs:
       - name: Run Trivy vulnerability scanner
         uses: aquasecurity/trivy-action@ed142fd0673e97e23eac54620cfb913e5ce36c25 # v0.36.0
         with:
-          image-ref: ${{ needs.build.outputs.image-sha-tag }}
+          image-ref: ${{ needs.merge.outputs.image-sha-tag }}
           format: 'sarif'
           output: 'trivy-results.sarif'
           severity: 'HIGH,CRITICAL'
@@ -360,14 +450,14 @@ jobs:
         if: always()
         uses: aquasecurity/trivy-action@ed142fd0673e97e23eac54620cfb913e5ce36c25 # v0.36.0
         with:
-          image-ref: ${{ needs.build.outputs.image-sha-tag }}
+          image-ref: ${{ needs.merge.outputs.image-sha-tag }}
           format: 'table'
           severity: 'HIGH,CRITICAL'
 
   promote:
     name: Tag and Promote Image
     runs-on: ubuntu-24.04
-    needs: [build, test, scan]
+    needs: [merge, test, scan]
     if: |
       github.event_name != 'pull_request' &&
       needs.test.result == 'success' &&
@@ -385,7 +475,7 @@ jobs:
       - name: Determine promotion tags
         id: tags
         env:
-          SOURCE_TAG: ${{ needs.build.outputs.image-sha-tag }}
+          SOURCE_TAG: ${{ needs.merge.outputs.image-sha-tag }}
           GIT_REF: ${{ github.ref }}
           GIT_REF_NAME: ${{ github.ref_name }}
           IMAGE_FULL: ${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}
@@ -435,7 +525,7 @@ jobs:
 
       - name: Promotion complete
         env:
-          SHA_TAG: ${{ needs.build.outputs.image-sha-tag }}
+          SHA_TAG: ${{ needs.merge.outputs.image-sha-tag }}
           PROMOTION_TAGS: ${{ steps.tags.outputs.PROMOTION_TAGS }}
         run: |
           echo "Image promotion successful"
@@ -449,11 +539,13 @@ jobs:
   # Stable-named aggregator so the branch ruleset can require a single
   # `ci-pass` check regardless of how the underlying matrix/conditional
   # jobs evolve. Treats SKIPPED as success: docs-only PRs intentionally
-  # skip `build` (and therefore `test`/`scan`/`promote`) via `changes`,
-  # and the aggregator must not block those merges. Mirrors the pattern
-  # used in owine/house-manager#191 and owine/trip-tracker ci.yml.
+  # skip `build` (and therefore `merge`/`test`/`scan`/`promote`) via
+  # `changes`, and PRs that do build still skip the push-only `merge`/`test`/
+  # `scan`/`promote` jobs — the aggregator must not block those merges.
+  # Mirrors the pattern used in owine/house-manager#191 and
+  # owine/trip-tracker ci.yml.
   ci-pass:
-    needs: [changes, build, test, scan, promote]
+    needs: [changes, build, merge, test, scan, promote]
     if: always()
     runs-on: ubuntu-24.04
     steps:
