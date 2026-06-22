@@ -44,15 +44,6 @@
   ],
   "packageRules": [
     {
-      "description": "Alpine base image version bumps — manual review. APK pins and the Repology depNameTemplate must be hand-updated to match the new release, so this must NOT ride the automerge bundle. (Digest-only rebuilds still automerge via the non-major group.)",
-      "matchDatasources": ["docker"],
-      "matchPackageNames": ["alpine"],
-      "matchUpdateTypes": ["minor", "patch"],
-      "groupName": "alpine base image",
-      "automerge": false,
-      "addLabels": ["needs-review"]
-    },
-    {
       "description": "NUT source version — feat: prefix (minor bump via release-please), manual review required",
       "matchDatasources": ["github-releases"],
       "matchPackageNames": ["networkupstools/nut"],
