@@ -5,6 +5,14 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [1.9.1](https://github.com/owine/nut-cgi/compare/v1.9.0...v1.9.1) (2026-06-22)
+
+
+### Bug Fixes
+
+* run build on push/tag (skipped since changes gate went PR-only) ([#66](https://github.com/owine/nut-cgi/issues/66)) ([cd8c9d4](https://github.com/owine/nut-cgi/commit/cd8c9d4f1e940093721f6508e2bdf45128e0440b))
+* run changes job always so push/tag builds aren't skipped ([#68](https://github.com/owine/nut-cgi/issues/68)) ([2b312e4](https://github.com/owine/nut-cgi/commit/2b312e4867e33cae09b3601e0d2b794720624f9f))
+
 ## [1.9.0](https://github.com/owine/nut-cgi/compare/v1.8.2...v1.9.0) (2026-06-15)
 
 
