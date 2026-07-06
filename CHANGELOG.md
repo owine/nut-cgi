@@ -5,6 +5,13 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [1.9.2](https://github.com/owine/nut-cgi/compare/v1.9.1...v1.9.2) (2026-07-06)
+
+
+### Dependencies
+
+* update dependency alpine_3_24/curl to v8.21.0-r0 ([#75](https://github.com/owine/nut-cgi/issues/75)) ([7059a46](https://github.com/owine/nut-cgi/commit/7059a46f8127b8e018ee73ea728b0406727c1084))
+
 ## [1.9.1](https://github.com/owine/nut-cgi/compare/v1.9.0...v1.9.1) (2026-06-22)
 
 
