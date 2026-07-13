@@ -5,6 +5,13 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [1.9.3](https://github.com/owine/nut-cgi/compare/v1.9.2...v1.9.3) (2026-07-13)
+
+
+### Dependencies
+
+* update github/codeql-action action to v4.37.0 ([#77](https://github.com/owine/nut-cgi/issues/77)) ([d94fb84](https://github.com/owine/nut-cgi/commit/d94fb84f0bc49500a3d7bfd5fbc62c6476963785))
+
 ## [1.9.2](https://github.com/owine/nut-cgi/compare/v1.9.1...v1.9.2) (2026-07-06)
 
 
