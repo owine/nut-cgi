@@ -49,30 +49,27 @@ We provide security updates for the following versions:
    - SHA256 digest pinning for base images
 
 6. **Minimal Attack Surface**
-   - Alpine Linux base (~65MB total image size)
+   - Minimal Alpine Linux base image
    - Only essential packages installed
    - No build tools in runtime image
 
 ### Recommended Production Hardening
 
-Apply these security options in production deployments. Replace the version below with the
-current release from https://github.com/owine/nut-cgi/releases:
+The working example lives in [`docker-compose.yml`](docker-compose.yml), which is kept here rather
+than duplicated into this document — it is executable, so it cannot drift from what actually runs.
 
-```yaml
-services:
-  nut-cgi:
-    image: ghcr.io/owine/nut-cgi:v1.9.2  # Pin to specific version
-    user: "1000:1000"
-    read_only: true
-    tmpfs:
-      - /tmp:mode=1777
-    security_opt:
-      - no-new-privileges:true
-    cap_drop:
-      - ALL
-    volumes:
-      - ./hosts.conf:/etc/nut/hosts.conf:ro
-```
+Apply all of it in production:
+
+- **Pin an exact `vX.Y.Z` image version** rather than a rolling tag (see the Releases page for the
+  current one)
+- **`user: "1000:1000"`** — run as a non-root UID
+- **`read_only: true`** — read-only root filesystem, with **`tmpfs: /tmp`** for the PID file and the
+  rewritten lighttpd config
+- **`security_opt: no-new-privileges:true`** — block privilege escalation
+- **`cap_drop: ALL`** — the container needs no Linux capabilities
+- **Mount `hosts.conf` read-only**
+
+Terminate TLS and enforce authentication at a reverse proxy; the container serves plain HTTP.
 
 ## Reporting a Vulnerability
 

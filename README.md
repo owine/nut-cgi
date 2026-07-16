@@ -5,11 +5,11 @@ built on Alpine Linux with security hardening and multi-architecture support.
 
 ## Features
 
-- **Alpine Linux 3.24** - Minimal base image (~65MB vs ~200MB Debian)
+- **Alpine Linux** - Minimal base image, well under 100 MB
 - **Multi-architecture** - Native support for `linux/amd64` and `linux/arm64`
 - **Security hardened** - Non-root user, pinned dependencies, vulnerability scanning
 - **Flexible UID support** - Works with `--user` override for volume mount permissions
-- **Enhanced health checks** - Five-tier validation of web server and CGI functionality
+- **Enhanced health checks** - Tiered validation of web server and CGI functionality
 - **Automated updates** - Renovate bot manages dependencies with semantic versioning
 
 ## Quick Start
@@ -166,15 +166,19 @@ For production deployments, use security options from the example `docker-compos
 Use specific version tags for production (recommended):
 
 ```bash
-# Pin to exact version -- see Releases for the current version
-docker pull ghcr.io/owine/nut-cgi:v1.9.2
+# Pin to an exact version (recommended) -- replace with the current release
+docker pull ghcr.io/owine/nut-cgi:vX.Y.Z
 
-# Pin to minor version (receives patch updates)
-docker pull ghcr.io/owine/nut-cgi:v1.9
+# Pin to a minor series (receives patch updates)
+docker pull ghcr.io/owine/nut-cgi:vX.Y
 
-# Pin to major version (receives minor/patch updates)
-docker pull ghcr.io/owine/nut-cgi:v1
+# Pin to a major series (receives minor/patch updates)
+docker pull ghcr.io/owine/nut-cgi:vX
 ```
+
+Find the current release on the
+[Releases page](https://github.com/owine/nut-cgi/releases) or under
+[Packages](https://github.com/owine/nut-cgi/pkgs/container/nut-cgi).
 
 **Available tags:**
 - `:vX.Y.Z` - Specific semantic version (exact pinning; **recommended for production**)
@@ -194,13 +198,14 @@ Releases before v1.2.0 were published without the `v` prefix (e.g. `1.1.2`).
 - **Stage 1 (builder):** Compiles NUT from the upstream release tarball (SHA256-verified),
   building only the CGI programs, then strips debug symbols and the W3C validator badges
   from NUT's HTML templates
-- **Stage 2 (runtime):** Alpine 3.24 with lighttpd, curl, gd, and openssl, plus the
-  compiled NUT CGI programs and libraries copied from the builder
+- **Stage 2 (runtime):** Alpine with lighttpd, curl, gd, and openssl, plus the compiled
+  NUT CGI programs and libraries copied from the builder
 
 ### Package Versions
 
-Direct APK packages are explicitly version-pinned for reproducibility. Transitive
-packages are resolved by apk, which installs the repository's current build.
+Direct APK packages are explicitly version-pinned for reproducibility; the pinned versions
+live in the `Dockerfile` and are kept current by Renovate. Transitive packages are resolved
+by apk, which installs the repository's current build.
 
 Runtime stage:
 
@@ -220,7 +225,7 @@ Package versions are automatically updated by Renovate bot with semantic version
 
 ### Health Check
 
-Five-tier validation ensures comprehensive health monitoring:
+Validation runs in tiers:
 
 1. **Tier 1:** Web server responding (HTTP success status)
 2. **Tier 2:** CGI execution working (non-empty response)
