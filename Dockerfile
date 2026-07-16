@@ -74,7 +74,7 @@ LABEL org.opencontainers.image.title="nut-cgi" \
 # openssl stays pinned: the 3.24.0 base image lags the repo (3.5.6-r0 vs
 # 3.5.7-r0), and curl/lighttpd would otherwise keep the older libcrypto3/libssl3.
 RUN apk add --no-cache \
-    lighttpd=1.4.82-r1 \
+    lighttpd=1.4.85-r0 \
     curl=8.21.0-r0 \
     gd=2.3.3-r10 \
     openssl=3.5.7-r0 && \
