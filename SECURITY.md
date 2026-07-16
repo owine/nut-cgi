@@ -2,7 +2,8 @@
 
 ## Overview
 
-The security of the nut-cgi project is a top priority. This document outlines our security practices, supported versions, and how to report vulnerabilities responsibly.
+The security of the nut-cgi project is a top priority. This document outlines our security practices, supported
+versions, and how to report vulnerabilities responsibly.
 
 ## Supported Versions
 
@@ -31,39 +32,44 @@ We provide security updates for the following versions:
    - Prevents runtime modifications to system files
 
 3. **Dependency Management**
-   - All Alpine packages are version-pinned for reproducibility
+   - Direct Alpine packages are version-pinned for reproducibility; transitive
+     packages are resolved by apk, which installs the repository's current build
    - Weekly Renovate bot updates with security priority
    - Automated Trivy vulnerability scanning (HIGH/CRITICAL)
 
-4. **Supply Chain Security**
+4. **Security Response Headers**
+   - `Content-Security-Policy` permitting no inline or external scripts by default
+   - `X-Content-Type-Options: nosniff`, `X-Frame-Options: DENY`, `Referrer-Policy: no-referrer`
+   - Policy overridable at runtime via `CSP_POLICY` for deployments behind a proxy
+     or CDN that injects content; see README for details
+
+5. **Supply Chain Security**
    - SBOM (Software Bill of Materials) attestations
    - Provenance attestations for build reproducibility
    - SHA256 digest pinning for base images
 
-5. **Minimal Attack Surface**
-   - Alpine Linux base (~50MB total image size)
+6. **Minimal Attack Surface**
+   - Minimal Alpine Linux base image
    - Only essential packages installed
    - No build tools in runtime image
 
 ### Recommended Production Hardening
 
-Apply these security options in production deployments:
+The working example lives in [`docker-compose.yml`](docker-compose.yml), which is kept here rather
+than duplicated into this document — it is executable, so it cannot drift from what actually runs.
 
-```yaml
-services:
-  nut-cgi:
-    image: ghcr.io/owine/nut-cgi:v1.0.0  # Pin to specific version
-    user: "1000:1000"
-    read_only: true
-    tmpfs:
-      - /tmp:mode=1777
-    security_opt:
-      - no-new-privileges:true
-    cap_drop:
-      - ALL
-    volumes:
-      - ./hosts.conf:/etc/nut/hosts.conf:ro
-```
+Apply all of it in production:
+
+- **Pin an exact `vX.Y.Z` image version** rather than a rolling tag (see the Releases page for the
+  current one)
+- **`user: "1000:1000"`** — run as a non-root UID
+- **`read_only: true`** — read-only root filesystem, with **`tmpfs: /tmp`** for the PID file and the
+  rewritten lighttpd config
+- **`security_opt: no-new-privileges:true`** — block privilege escalation
+- **`cap_drop: ALL`** — the container needs no Linux capabilities
+- **Mount `hosts.conf` read-only**
+
+Terminate TLS and enforce authentication at a reverse proxy; the container serves plain HTTP.
 
 ## Reporting a Vulnerability
 
@@ -71,15 +77,12 @@ We take security vulnerabilities seriously and appreciate responsible disclosure
 
 ### How to Report
 
-**Preferred Method:** GitHub Security Advisories
-1. Go to https://github.com/owine/nut-cgi/security/advisories
-2. Click "Report a vulnerability"
-3. Fill out the advisory form with details
+Report privately through GitHub Security Advisories:
 
-**Alternative Method:** Email
-- Send detailed report to: [Your security contact email]
-- Use GPG key: [Optional: Your GPG key ID]
-- Include "SECURITY" in the subject line
+1. Go to https://github.com/owine/nut-cgi/security/advisories/new
+2. Fill out the advisory form with details
+
+Please do not open a public issue for a suspected vulnerability.
 
 ### What to Include
 
@@ -125,10 +128,11 @@ Please provide the following information:
 ### Automated Scans
 
 1. **Trivy Vulnerability Scanner**
-   - Runs weekly (Monday 00:00 UTC)
-   - Triggered after every build
-   - Scans for HIGH and CRITICAL vulnerabilities
-   - Results published to GitHub Security tab
+   - Runs as the `Security Scan` job in `.github/workflows/build.yml`
+   - Triggered after every successful build on `main` and on version tags
+   - Does not run on pull requests, and there is no scheduled scan
+   - Scans for HIGH and CRITICAL vulnerabilities; fails the build on a finding
+   - Results published to GitHub Security tab as SARIF
 
 2. **Dependency Updates**
    - Renovate bot monitors all dependencies
@@ -163,7 +167,8 @@ docker run --rm ghcr.io/owine/nut-cgi:latest id
 
 **Consideration:** `/etc/nut/hosts.conf` is mounted as world-readable (mode 0644)
 
-**Rationale:** The `hosts.conf` file contains only UPS monitoring endpoints (hostname/IP + port), which are non-sensitive network configuration data. This enables flexible UID/GID override via `--user` flag.
+**Rationale:** The `hosts.conf` file contains only UPS monitoring endpoints (hostname/IP + port), which are
+non-sensitive network configuration data. This enables flexible UID/GID override via `--user` flag.
 
 **Security Impact:** Low - hosts.conf should never contain credentials (use `upsd.users` on the UPS server for authentication)
 
@@ -176,9 +181,39 @@ docker run --rm ghcr.io/owine/nut-cgi:latest id
 
 **Consideration:** CGI scripts run with same privileges as lighttpd process (UID 1000)
 
-**Security Impact:** Low - CGI programs are read-only executables, no user input processing
+**Security Impact:** Low - the CGI programs are read-only executables, and the container
+runs on a read-only root filesystem, so they cannot be modified at runtime.
 
 **Mitigation:** Container runs in read-only filesystem mode, preventing runtime modifications
+
+### upsset.cgi (UPS Administration Interface)
+
+**Consideration:** NUT ships `upsset.cgi`, which can change UPS settings and issue commands
+including shutdown. It has no authentication of its own. The image blocks it with a 403 by
+default; `ENABLE_UPSSET=true` removes that block.
+
+**Security Impact:** High if enabled without an authenticating reverse proxy — anything that
+can reach the interface can power off the attached hardware.
+
+**Mitigation:** Leave `ENABLE_UPSSET` unset unless the container sits behind a reverse proxy
+that enforces authentication. See "Enabling upsset.cgi" in README.md.
+
+### Unescaped Rendering of UPS Variables
+
+**Consideration:** `upsstats.cgi` renders UPS variables (`ups.model`, `device.mfr`,
+`ups.status`, and others) into the page without HTML-escaping them — NUT's
+`parse_var()` emits the value with a bare `printf("%s", answer)`. This image is also
+built `--without-ssl`, so the connection to upsd on port 3493 is plaintext.
+
+**Security Impact:** Medium - a hostile or compromised UPS, a spoofed upsd, or an
+attacker able to modify NUT protocol traffic in transit can inject arbitrary markup
+into the status page.
+
+**Mitigation:** The default `Content-Security-Policy` permits no inline and no
+external script sources, which prevents injected markup from executing. Keep
+`script-src` as restrictive as your deployment allows if you override the policy via
+`CSP_POLICY`, and avoid `CSP_POLICY=none` unless a reverse proxy sets an equivalent
+policy. Treat the network path to upsd as trusted, or tunnel it.
 
 ### Network Exposure
 
@@ -248,4 +283,4 @@ For security-related questions or concerns:
 
 ---
 
-**Last Updated:** 2026-01-06
+**Last Updated:** 2026-07-16

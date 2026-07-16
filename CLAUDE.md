@@ -4,12 +4,18 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 
 ## Project Overview
 
-This is a Docker image project for the Network UPS Tools (NUT) CGI web interface, built on Alpine Linux 3.23 with security hardening and multi-architecture support. The project provides a lightweight (~50MB) containerized web interface for monitoring UPS (Uninterruptible Power Supply) systems across a network.
+This is a Docker image project for the Network UPS Tools (NUT) CGI web interface, built on Alpine Linux with security
+hardening and multi-architecture support. It provides a small containerized web interface for monitoring UPS
+(Uninterruptible Power Supply) systems across a network.
+
+**Versions are not restated in this document.** The Alpine release, the NUT release, and every APK pin live in the
+`Dockerfile`; the current release version lives in `.release-please-manifest.json`. Read those rather than trusting a
+number written here.
 
 **Key Technologies:**
-- Alpine Linux 3.23 (base image)
+- Alpine Linux (base image; release pinned in `Dockerfile`)
 - lighttpd (web server)
-- nut-cgi (Network UPS Tools CGI programs)
+- nut-cgi (Network UPS Tools CGI programs, compiled from source; release pinned via `ARG NUT_VERSION`)
 - Docker multi-stage builds
 - GitHub Actions (CI/CD)
 - Renovate (automated dependency management)
@@ -74,13 +80,17 @@ yamllint .github/workflows/
 
 The Dockerfile uses a two-stage build approach:
 
-1. **Builder Stage**: Minimal Alpine 3.23 base for future build-time operations (currently minimal)
+1. **Builder Stage**: Compiles NUT (`ARG NUT_VERSION`) from the upstream release tarball —
+   downloads it, verifies its SHA256, runs `./configure --with-cgi`, builds only the CGI
+   programs and their dependencies, strips debug symbols, and strips the W3C validator
+   badges from NUT's HTML templates
 2. **Runtime Stage**: Final minimal image with only required packages
 
 **Key Architectural Decisions:**
 
 - **Version Pinning**: Alpine base image is digest-pinned; APK packages are individually version-pinned
-  - APK packages use exact version pinning (e.g., `curl=8.17.0-r1`) for deterministic builds
+  - Direct APK packages use exact version pinning (`<package>=<version>`) for deterministic builds;
+    transitive packages are left to apk, which installs the repository's current build
   - Renovate manages the base image version and digest updates
   - When updating the Alpine base image, APK package versions must be updated to match the new Alpine release
 
@@ -97,17 +107,27 @@ The Dockerfile uses a two-stage build approach:
 
 ### Health Check System
 
-Three-tier validation approach in `healthcheck.sh`:
+Tiered validation in `healthcheck.sh`:
 
-1. **Tier 1**: Web server responding (HTTP 200)
+1. **Tier 1**: Web server responding (HTTP success status)
 2. **Tier 2**: CGI execution working (non-empty response)
-3. **Tier 3**: Valid CGI output (no error content)
+3. **Tier 3**: Valid CGI infrastructure (no template/server errors)
+4. **Tier 4**: Valid HTTP response headers (`Content-Type` present)
+5. **Tier 5**: UPS connectivity — **strict mode only**
+
+Tiers 1-4 validate infrastructure and always run. Tier 5 runs only when
+`HEALTHCHECK_MODE=strict`, and fails the check if no UPS is reachable.
 
 Configuration: 30s interval, 10s timeout, 15s start period, 3 retries
 
+**Why Tier 5 is opt-in:** a UPS being unreachable is usually a network or UPS
+problem, not a container problem. Reporting the container unhealthy for it would
+make Docker restart a perfectly healthy web server. `strict` exists for deployments
+that would rather surface UPS loss through container health.
+
 ### CI/CD Pipeline
 
-Four GitHub Actions workflows provide comprehensive automation:
+The workflows in `.github/workflows/` provide automation:
 
 1. **`lint.yml`**: Pre-build validation
    - Dockerfile linting (hadolint)
@@ -123,13 +143,7 @@ Four GitHub Actions workflows provide comprehensive automation:
    - Multiple tag variants (semantic versioning)
    - Triggers: Push to main, tag push (v*.*.*), PRs (build only)
 
-3. **`security.yml`**: Vulnerability scanning
-   - Trivy scanner for HIGH/CRITICAL vulnerabilities
-   - Runs after successful builds + weekly schedule
-   - Uploads results to GitHub Security tab
-   - Fails on critical vulnerabilities
-
-4. **`release.yml`**: Automated releases via release-please
+3. **`release.yml`**: Automated releases via release-please
    - Creates/updates a release PR on every push to main
    - Merging the release PR creates git tag + GitHub Release
    - Tag push triggers `build.yml` automatically via GitHub App token
@@ -152,10 +166,12 @@ Renovate bot automatically manages updates with this strategy:
 
 All auto-merges require passing CI/CD checks.
 
-**Alpine version bump procedure:** When upgrading Alpine (e.g., 3.23 → 3.24), update all three in the same PR:
+**Alpine version bump procedure:** When upgrading Alpine across a minor release (3.X → 3.Y),
+update all three in the same PR:
 1. The `FROM alpine:` base image tag and digest in `Dockerfile`
 2. All APK package version pins in `Dockerfile` (query new versions with `apk policy`)
-3. The `depNameTemplate` in `.github/renovate.json` (e.g., `alpine_3_23` → `alpine_3_24`)
+3. The `depNameTemplate` in `.github/renovate.json` (`alpine_3_X/` → `alpine_3_Y/`) — it must match
+   the base image
 
 ### Automated Releases
 
@@ -173,11 +189,14 @@ Release-please determines version bumps from commit prefixes:
 - `deps:` → patch bump (used by Renovate for dependency updates)
 - `feat!:` or `BREAKING CHANGE:` in body → major bump
 
-The workflow requires two repository secrets for a GitHub App token (`RELEASE_APP_ID`, `RELEASE_APP_PRIVATE_KEY`). The App token is needed because `GITHUB_TOKEN` events do not trigger other workflows. The `ANTHROPIC_API_KEY` secret is no longer required for releases.
+The workflow requires two repository secrets for a GitHub App token (`RELEASE_APP_ID`, `RELEASE_APP_PRIVATE_KEY`). The
+App token is needed because `GITHUB_TOKEN` events do not trigger other workflows. The `ANTHROPIC_API_KEY` secret is no
+longer required for releases.
 
 ### Conventional Commit Standards
 
-This project uses [Conventional Commits](https://www.conventionalcommits.org/) to drive automated releases via release-please. The commit type determines whether a release is created and what version bump occurs.
+This project uses [Conventional Commits](https://www.conventionalcommits.org/) to drive automated releases via
+release-please. The commit type determines whether a release is created and what version bump occurs.
 
 **Releasable types** (trigger version bumps):
 
@@ -193,9 +212,11 @@ This project uses [Conventional Commits](https://www.conventionalcommits.org/) t
 
 These commits are included in the next release when a releasable commit is present, but do not appear in CHANGELOG.md.
 
-**Breaking changes:** Append `!` after the type (e.g., `feat!:`) or include `BREAKING CHANGE:` in the commit body to trigger a major version bump.
+**Breaking changes:** Append `!` after the type (e.g., `feat!:`) or include `BREAKING CHANGE:` in the commit body to
+trigger a major version bump.
 
-**Scopes** are optional and informational (e.g., `fix(security):`, `deps(alpine):`). They do not affect version bumps or changelog grouping.
+**Scopes** are optional and informational (e.g., `fix(security):`, `deps(alpine):`). They do not affect version bumps or
+changelog grouping.
 
 **Examples:**
 ```
@@ -210,40 +231,37 @@ feat!: change hosts.conf format              → major bump
 
 Published to `ghcr.io/owine/nut-cgi` with multiple tag variants:
 
-- `v1.0.0` - Exact semantic version (production pinning)
-- `v1.0` - Latest patch in v1.0.x series
-- `v1` - Latest minor in v1.x series
-- `latest` - Latest build from main branch
+- `vX.Y.Z` - Exact semantic version (production pinning)
+- `vX.Y` - Latest patch in that minor series
+- `vX` - Latest minor in that major series
+- `latest` - Latest released version
 - `sha-<commit>` - Commit-specific builds
 - `main` - Main branch builds
 
-**Production best practice**: Pin to exact versions (e.g., `v1.0.0`)
+Tags are applied by the `promote` job in `build.yml`, which runs only after the Trivy
+scan and functional tests pass. A release whose scan fails gets a git tag and a GitHub
+Release but **no image** — check that `promote` ran before assuming a version is pullable.
 
-## File Structure
+Releases before v1.2.0 were published without the `v` prefix (e.g. `1.1.2`).
 
-```
-nut-cgi/
-├── .github/
-│   ├── workflows/
-│   │   ├── build.yml       # Multi-arch build & GHCR publishing
-│   │   ├── lint.yml        # Pre-build validation
-│   │   ├── release.yml     # Automated releases (release-please)
-│   │   └── security.yml    # Trivy vulnerability scanning
-│   └── renovate.json       # Dependency automation config
-├── docs/
-│   └── plans/              # Design documents and migration plans
-├── Dockerfile              # Multi-stage Alpine 3.23 build
-├── docker-compose.yml      # Example deployment (security hardened)
-├── entrypoint.sh           # Runtime config overrides (ENABLE_UPSSET, CSP_POLICY)
-├── strip-w3c-badges.sh     # Build-time removal of NUT's hotlinked W3C badges
-├── healthcheck.sh          # Three-tier health validation script
-├── release-please-config.json  # Release-please package configuration
-├── .release-please-manifest.json  # Current version tracker (managed by release-please)
-├── version.txt                 # Current version string (managed by release-please)
-├── .dockerignore           # Build context optimization
-├── LICENSE                 # MIT license
-└── README.md               # User-facing documentation
-```
+**Production best practice**: Pin to an exact `vX.Y.Z` version. The current release is in
+`.release-please-manifest.json` and on the Releases page.
+
+## Key Files
+
+`ls` and `git ls-files` show the full layout, so it is not mirrored here. These are the files whose
+purpose is not obvious from the name:
+
+| File | Purpose |
+|---|---|
+| `Dockerfile` | Multi-stage build. Compiles NUT from source in the builder; owns every version pin. |
+| `entrypoint.sh` | Applies the runtime env-var overrides by rewriting the lighttpd config into `/tmp`. |
+| `healthcheck.sh` | Tiered health validation; honours `HEALTHCHECK_MODE`. |
+| `strip-w3c-badges.sh` | Build-time removal of NUT's hotlinked W3C badges. Fails the build if upstream markup drifts past its matcher. |
+| `hosts.conf.example` | Annotated template for the config users mount at `/etc/nut/hosts.conf`. |
+| `.github/renovate.json` | Dependency automation, including the Repology custom manager for APK pins. |
+| `.github/workflows/build.yml` | Multi-arch build, Trivy scan, publish, and tag promotion. |
+| `.release-please-manifest.json` | Current release version. Managed by release-please; the source of truth for "what version is this". |
 
 ## Important Implementation Details
 
@@ -257,7 +275,8 @@ The image supports runtime UID override while maintaining security:
 - lighttpd PID file in `/tmp/lighttpd.pid` (world-writable location)
 - Health check script executable by any UID
 
-**Rationale**: UPS host configurations are non-sensitive network data, so relaxed config permissions are acceptable for deployment flexibility.
+**Rationale**: UPS host configurations are non-sensitive network data, so relaxed config permissions are acceptable for
+deployment flexibility.
 
 ### Lighttpd Configuration
 
@@ -271,11 +290,16 @@ The Dockerfile configures lighttpd via sed commands:
 
 ### Runtime Configuration Overrides
 
-`entrypoint.sh` supports two env vars, both of which work by rewriting the config to
-`/tmp/lighttpd.conf` (the root filesystem is read-only in the recommended deployment):
+The image supports three env vars:
 
-- `ENABLE_UPSSET=true` — drops the `upsset.cgi` deny rule
-- `CSP_POLICY` — replaces the `Content-Security-Policy` header; `none` omits it entirely
+| Variable | Values | Read by | Effect |
+|---|---|---|---|
+| `HEALTHCHECK_MODE` | `basic` (default), `strict` | `healthcheck.sh` | `strict` adds Tier 5 (UPS connectivity) |
+| `ENABLE_UPSSET` | `true` | `entrypoint.sh` | Drops the `upsset.cgi` deny rule |
+| `CSP_POLICY` | policy string, or `none` | `entrypoint.sh` | Replaces the CSP header; `none` omits it |
+
+`ENABLE_UPSSET` and `CSP_POLICY` work by rewriting the config to `/tmp/lighttpd.conf`
+(the root filesystem is read-only in the recommended deployment).
 
 **Any new override must go through the same single rewrite path.** That path
 absolutises `include "mod_` → `include "/etc/lighttpd/mod_`, which is not cosmetic:
@@ -306,69 +330,44 @@ fails at that step, upstream reflowed the badge markup and the matcher in
 
 ### Version Pinning Philosophy
 
-The Alpine base image is digest-pinned (e.g., `alpine:3.23.3@sha256:...`) for exact reproducibility. APK packages are individually version-pinned (e.g., `curl=8.17.0-r1`) following the [hassio-addons pattern](https://github.com/hassio-addons/addon-ssh) for fully deterministic builds. When updating the Alpine base image to a new version, APK package versions must also be updated to match the new Alpine release's repository. Renovate manages the base image version and digest.
+The Alpine base image is digest-pinned (`alpine:<version>@sha256:...`) for exact reproducibility. Direct APK packages
+are individually version-pinned (`<package>=<version>`) following the
+[hassio-addons pattern](https://github.com/hassio-addons/addon-ssh) for fully deterministic builds.
+When updating the Alpine base image to a new version, APK package versions must also be updated to
+match the new Alpine release's repository. Renovate manages the base image version and digest.
 
 ## Configuration
 
-### hosts.conf Format
+User-facing configuration is documented in `README.md` and is not duplicated here:
 
-The container requires a `hosts.conf` file mounted at `/etc/nut/hosts.conf`:
+- **`hosts.conf` format** — see "Configuration" in `README.md`; annotated examples live in
+  `hosts.conf.example`
+- **Environment variables** — see "Runtime Configuration Overrides" above for how they are
+  implemented, and `README.md` for user-facing guidance
+- **Production hardening** — `docker-compose.yml` is the working example, with every security
+  option commented in place. It is executable, so it cannot drift from what actually runs.
+  `SECURITY.md` covers the reasoning.
 
-```conf
-# Monitor local UPS
-MONITOR myups@localhost "Living Room UPS"
-
-# Monitor remote UPS systems
-MONITOR serverups@192.168.1.100 "Server Rack UPS"
-MONITOR officeups@192.168.1.101 "Office UPS"
-```
-
-**Deployment Example:**
-```bash
-docker run -d -p 8000:80 \
-  -v /path/to/hosts.conf:/etc/nut/hosts.conf:ro \
-  ghcr.io/owine/nut-cgi:v1.0.0
-```
-
-### Production Security Hardening
-
-Recommended docker-compose.yml security options:
-
-```yaml
-services:
-  nut-cgi:
-    image: ghcr.io/owine/nut-cgi:v1.0.0  # Version pinned
-    user: "1000:1000"                     # Explicit UID
-    read_only: true                       # Read-only root filesystem
-    tmpfs:
-      - /tmp:mode=1777                   # Writable temp space
-    security_opt:
-      - no-new-privileges:true           # Prevent privilege escalation
-    cap_drop:
-      - ALL                              # Drop all capabilities
-    volumes:
-      - ./hosts.conf:/etc/nut/hosts.conf:ro
-    ports:
-      - "8000:80"
-    restart: unless-stopped
-```
+When configuration behaviour changes, update the code and `README.md`. This file should
+describe *how it is built*, not restate *how it is used*.
 
 ## Migration Context
 
 This project is forked from `danielb7390/nut-cgi` with these improvements:
 
-- **Base image**: Debian → Alpine 3.23 (~200MB → ~50MB)
+- **Base image**: Debian → Alpine (substantially smaller)
 - **Multi-architecture**: Added ARM64 support
 - **Security**: Non-root user, vulnerability scanning, hardened configs
 - **Automation**: CI/CD pipeline with GitHub Actions
 - **Dependency management**: Renovate bot for automatic updates
-- **Enhanced health checks**: Three-tier validation vs. simple HTTP check
+- **Enhanced health checks**: Tiered validation vs. simple HTTP check
 
 The migration maintains backward compatibility with `hosts.conf` format and UPS monitoring functionality.
 
 ## Semantic Versioning Policy
 
-Version bumps are determined automatically by release-please based on conventional commit prefixes (see [Conventional Commit Standards](#conventional-commit-standards) above).
+Version bumps are determined automatically by release-please based on conventional commit prefixes
+(see [Conventional Commit Standards](#conventional-commit-standards) above).
 
 **Patch (v1.0.x):**
 - Alpine package updates within same minor version
@@ -377,7 +376,7 @@ Version bumps are determined automatically by release-please based on convention
 - Documentation updates
 
 **Minor (v1.x.0):**
-- Alpine minor version updates (3.23 → 3.24)
+- Alpine minor version updates (3.X → 3.Y)
 - New features (additional health check options)
 - Non-breaking configuration enhancements
 - Lighttpd configuration improvements
@@ -431,7 +430,7 @@ docker exec <container> cat /etc/nut/hosts.conf
 
 ## Related Documentation
 
-- **Design document**: `docs/plans/2026-01-05-nut-cgi-fork-design.md` - Complete architectural decisions and trade-offs
-- **Migration plan**: `docs/plans/2026-01-05-alpine-migration.md` - Step-by-step implementation plan
+- **Changelog**: `CHANGELOG.md` - Release history (maintained by release-please)
+- **Security policy**: `SECURITY.md` - Threat model, hardening, and vulnerability reporting
 - **NUT documentation**: https://networkupstools.org/docs/
 - **Alpine packages**: https://pkgs.alpinelinux.org/packages
