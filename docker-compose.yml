@@ -32,6 +32,14 @@ services:
       # WARNING: upsset.cgi allows UPS configuration changes (shutdown, etc.)
       # Only enable behind an authenticated reverse proxy.
       # - ENABLE_UPSSET=true
+      #
+      # Content-Security-Policy. Defaults to a strict policy suited to the stock
+      # interface. Override when something downstream injects into the page --
+      # e.g. Cloudflare Web Analytics adds its beacon at the edge, after the
+      # response has left this container. Replaces the header wholesale, so
+      # restate the directives you want to keep. CSP_POLICY=none omits the
+      # header entirely (let a reverse proxy own the policy).
+      # - CSP_POLICY: "default-src 'self'; img-src 'self' data:; style-src 'self' 'unsafe-inline'; script-src 'self' https://static.cloudflareinsights.com; connect-src 'self' https://cloudflareinsights.com"
 
     # Mount your hosts.conf configuration
     volumes:

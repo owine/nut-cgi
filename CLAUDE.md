@@ -234,6 +234,8 @@ nut-cgi/
 │   └── plans/              # Design documents and migration plans
 ├── Dockerfile              # Multi-stage Alpine 3.23 build
 ├── docker-compose.yml      # Example deployment (security hardened)
+├── entrypoint.sh           # Runtime config overrides (ENABLE_UPSSET, CSP_POLICY)
+├── strip-w3c-badges.sh     # Build-time removal of NUT's hotlinked W3C badges
 ├── healthcheck.sh          # Three-tier health validation script
 ├── release-please-config.json  # Release-please package configuration
 ├── .release-please-manifest.json  # Current version tracker (managed by release-please)
@@ -266,6 +268,41 @@ The Dockerfile configures lighttpd via sed commands:
 - CGI enabled for `.cgi` files
 - PID file: `/tmp/lighttpd.pid` (any UID can write)
 - Logging: stdout/stderr (Docker best practice)
+
+### Runtime Configuration Overrides
+
+`entrypoint.sh` supports two env vars, both of which work by rewriting the config to
+`/tmp/lighttpd.conf` (the root filesystem is read-only in the recommended deployment):
+
+- `ENABLE_UPSSET=true` — drops the `upsset.cgi` deny rule
+- `CSP_POLICY` — replaces the `Content-Security-Policy` header; `none` omits it entirely
+
+**Any new override must go through the same single rewrite path.** That path
+absolutises `include "mod_` → `include "/etc/lighttpd/mod_`, which is not cosmetic:
+lighttpd resolves relative includes against the config file's own directory, and
+`/tmp` contains no `mod_*.conf`. An override that rewrites the config on its own
+branch without this fixup will fail to start.
+
+The CSP is emitted as its own `setenv.add-response-header += ( ... )` directive rather
+than as an entry in the main header array, so the entrypoint can replace or delete
+that one line without stranding a trailing comma in the array.
+
+`CSP_POLICY` is interpolated into a quoted lighttpd string, so the entrypoint rejects
+values containing double quotes or newlines, and injects the value via awk's
+`ENVIRON[]` rather than a sed replacement (sed would reinterpret `&` and `\`).
+
+### NUT HTML Templates
+
+The image does not vendor its own templates: the builder copies NUT's
+`upsstats*.html.sample` files and `strip-w3c-badges.sh` removes the two hotlinked W3C
+validator badges from them. The badges violate `img-src 'self' data:` and render
+broken, and their `check/referer` links are dead anyway under `Referrer-Policy: no-referrer`.
+
+Stripping rather than vendoring keeps NUT version bumps delivering upstream template
+fixes. The tradeoff is that upstream markup changes could make the strip silently
+no-op, so the script **fails the build** if any W3C reference survives. If a NUT bump
+fails at that step, upstream reflowed the badge markup and the matcher in
+`strip-w3c-badges.sh` needs updating — do not simply bypass it.
 
 ### Version Pinning Philosophy
 

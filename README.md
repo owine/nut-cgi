@@ -69,6 +69,59 @@ environment:
   - HEALTHCHECK_MODE=strict  # Require UPS connectivity for healthy status
 ```
 
+### Content Security Policy
+
+The container sends a strict `Content-Security-Policy` by default:
+
+```
+default-src 'self'; img-src 'self' data:; style-src 'self' 'unsafe-inline'
+```
+
+This suits the stock interface, which loads no external resources.
+
+The policy is not decorative. `upsstats.cgi` renders UPS variables (`ups.model`,
+`device.mfr`, `ups.status`, …) into the page **without HTML-escaping them**, and this
+image talks to upsd over plaintext NUT protocol. A hostile UPS, a spoofed upsd, or a
+MITM on port 3493 can therefore inject markup into the status page. Because the
+default policy allows no inline or external scripts, it blocks that injection from
+executing. Keep `script-src` as restrictive as your deployment permits.
+
+Override the policy with the `CSP_POLICY` environment variable when something
+downstream of the container injects content into the page:
+
+```yaml
+environment:
+  - CSP_POLICY: "default-src 'self'; img-src 'self' data:; style-src 'self' 'unsafe-inline'; script-src 'self' https://static.cloudflareinsights.com; connect-src 'self' https://cloudflareinsights.com"
+```
+
+`CSP_POLICY` replaces the whole header rather than adding to it, so restate the
+directives you want to keep. Two things catch people out:
+
+- **Naming a directive overrides `default-src` for that type.** Adding
+  `script-src https://example.com` without `'self'` blocks the page's own scripts.
+  Repeat `'self'` in every directive you introduce.
+- **A CDN often loads from one host and reports to another.** The Cloudflare beacon
+  above is fetched from `static.cloudflareinsights.com` but posts results to
+  `cloudflareinsights.com` — the apex, no `static.`. It needs both `script-src` and
+  `connect-src`; allowing only the script leaves the beacon loading but unable to report.
+
+Set `CSP_POLICY=none` to send no CSP header at all. This is appropriate only when a
+reverse proxy sets an equivalent policy in its place — given the unescaped rendering
+above, a deployment with no CSP from either layer is genuinely exposed. Prefer `none`
+over configuring both layers: two CSP headers are intersected by the browser rather
+than one overriding the other, which is rarely what you want.
+
+The container refuses to start if `CSP_POLICY` contains a double quote or newline,
+since the value is interpolated into the lighttpd config.
+
+#### Reverse proxies that inject content
+
+The policy is sent by lighttpd, which cannot know about markup added after a
+response leaves the container. Cloudflare Web Analytics, for example, injects its
+beacon `<script>` at the edge — downstream of the origin, the reverse proxy, and the
+tunnel — so `default-src 'self'` blocks it and the browser reports a CSP violation
+for a script the container never served. `CSP_POLICY` exists for exactly this case.
+
 ## Advanced Usage
 
 ### Custom UID/GID

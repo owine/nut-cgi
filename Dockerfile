@@ -54,6 +54,14 @@ RUN ./configure \
     # shellcheck disable=SC2015
     cp /build/rootfs/etc/nut/upsset.conf.sample /build/rootfs/etc/nut/upsset.conf 2>/dev/null || true
 
+# Strip NUT's hotlinked W3C validator badges from every upsstats template.
+# They violate our img-src CSP and render broken; their check/referer links are
+# already dead because we send Referrer-Policy: no-referrer. Covers the .sample
+# files too, so activating a modern template later stays CSP-clean.
+# The script fails the build if upstream reflows the markup past its matcher.
+COPY --chmod=0755 strip-w3c-badges.sh /usr/local/bin/strip-w3c-badges.sh
+RUN /usr/local/bin/strip-w3c-badges.sh /build/rootfs/etc/nut/upsstats*.html*
+
 # ============================================================================
 # Runtime Stage - Minimal footprint
 # ============================================================================
@@ -124,9 +132,13 @@ RUN sed -i 's|^server.document-root.*|server.document-root = "/usr/lib/cgi-bin/n
     echo 'setenv.add-response-header = (' >> /etc/lighttpd/lighttpd.conf && \
     echo '  "X-Content-Type-Options" => "nosniff",' >> /etc/lighttpd/lighttpd.conf && \
     echo '  "X-Frame-Options" => "DENY",' >> /etc/lighttpd/lighttpd.conf && \
-    echo '  "Referrer-Policy" => "no-referrer",' >> /etc/lighttpd/lighttpd.conf && \
-    echo "  \"Content-Security-Policy\" => \"default-src 'self'; img-src 'self' data:; style-src 'self' 'unsafe-inline'\"" >> /etc/lighttpd/lighttpd.conf && \
+    echo '  "Referrer-Policy" => "no-referrer"' >> /etc/lighttpd/lighttpd.conf && \
     echo ')' >> /etc/lighttpd/lighttpd.conf && \
+    # CSP lives in its own directive so the entrypoint can replace or drop that
+    # single line for CSP_POLICY, without disturbing the headers above it.
+    echo '' >> /etc/lighttpd/lighttpd.conf && \
+    echo '# Content-Security-Policy (override at runtime with the CSP_POLICY env var)' >> /etc/lighttpd/lighttpd.conf && \
+    echo "setenv.add-response-header += ( \"Content-Security-Policy\" => \"default-src 'self'; img-src 'self' data:; style-src 'self' 'unsafe-inline'\" )" >> /etc/lighttpd/lighttpd.conf && \
     # Hide server version and disable directory listing
     echo 'server.tag = ""' >> /etc/lighttpd/lighttpd.conf && \
     echo 'dir-listing.activate = "disable"' >> /etc/lighttpd/lighttpd.conf && \
