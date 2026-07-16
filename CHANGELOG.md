@@ -5,6 +5,19 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [1.9.4](https://github.com/owine/nut-cgi/compare/v1.9.3...v1.9.4) (2026-07-16)
+
+
+### Bug Fixes
+
+* resolve CSP violations from W3C badges and injected scripts ([#82](https://github.com/owine/nut-cgi/issues/82)) ([7454db7](https://github.com/owine/nut-cgi/commit/7454db7626427853012e45913c733a45bff6d72a))
+
+
+### Dependencies
+
+* update dependency alpine_3_24/lighttpd to v1.4.85-r0 ([#81](https://github.com/owine/nut-cgi/issues/81)) ([0e091a0](https://github.com/owine/nut-cgi/commit/0e091a017a6dc6a7243904d8ee0f44d8284b0c0b))
+* update github/codeql-action action to v4.37.1 ([#79](https://github.com/owine/nut-cgi/issues/79)) ([a93fe49](https://github.com/owine/nut-cgi/commit/a93fe4905aac41f622767cac359a671df628aaf9))
+
 ## [1.9.3](https://github.com/owine/nut-cgi/compare/v1.9.2...v1.9.3) (2026-07-13)
 
 
