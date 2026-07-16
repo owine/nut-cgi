@@ -21,6 +21,16 @@ if [ "${ENABLE_UPSSET:-}" = "true" ] || [ -n "${CSP_POLICY:-}" ]; then
         sed -i '/$HTTP\["url"\] =~ "^\/upsset\\.cgi"/d' "${LIGHTTPD_CONF}"
     fi
 
+    # Both CSP paths below key off the directive the Dockerfile emits. If that line
+    # ever changes shape, they would match nothing and fail silently -- leaving the
+    # default policy in place while reporting success, which is the opposite of what
+    # the operator asked for. Fail loudly instead.
+    if [ -n "${CSP_POLICY:-}" ] && ! grep -qF "${CSP_MARKER}" "${LIGHTTPD_CONF}"; then
+        echo "entrypoint: CSP directive not found in lighttpd.conf; CSP_POLICY cannot be applied" >&2
+        echo "entrypoint: the Dockerfile's Content-Security-Policy line and CSP_MARKER have diverged" >&2
+        exit 1
+    fi
+
     case "${CSP_POLICY:-}" in
         "")
             # Unset: keep the strict policy baked in at build time.
