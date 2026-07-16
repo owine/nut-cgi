@@ -238,7 +238,8 @@ Release but **no image** — check that `promote` ran before assuming a version 
 
 Releases before v1.2.0 were published without the `v` prefix (e.g. `1.1.2`).
 
-**Production best practice**: Pin to exact versions (e.g., `v1.9.2`)
+**Production best practice**: Pin to exact versions (e.g., `v1.9.2`). Examples in this repo name a
+version that exists at time of writing; check the Releases page for the current one.
 
 ## File Structure
 

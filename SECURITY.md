@@ -55,7 +55,8 @@ We provide security updates for the following versions:
 
 ### Recommended Production Hardening
 
-Apply these security options in production deployments:
+Apply these security options in production deployments. Replace the version below with the
+current release from https://github.com/owine/nut-cgi/releases:
 
 ```yaml
 services:
@@ -187,6 +188,18 @@ non-sensitive network configuration data. This enables flexible UID/GID override
 runs on a read-only root filesystem, so they cannot be modified at runtime.
 
 **Mitigation:** Container runs in read-only filesystem mode, preventing runtime modifications
+
+### upsset.cgi (UPS Administration Interface)
+
+**Consideration:** NUT ships `upsset.cgi`, which can change UPS settings and issue commands
+including shutdown. It has no authentication of its own. The image blocks it with a 403 by
+default; `ENABLE_UPSSET=true` removes that block.
+
+**Security Impact:** High if enabled without an authenticating reverse proxy — anything that
+can reach the interface can power off the attached hardware.
+
+**Mitigation:** Leave `ENABLE_UPSSET` unset unless the container sits behind a reverse proxy
+that enforces authentication. See "Enabling upsset.cgi" in README.md.
 
 ### Unescaped Rendering of UPS Variables
 
