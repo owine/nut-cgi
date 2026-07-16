@@ -5,11 +5,11 @@ built on Alpine Linux with security hardening and multi-architecture support.
 
 ## Features
 
-- **Alpine Linux 3.23** - Minimal base image (~50MB vs ~200MB Debian)
+- **Alpine Linux 3.24** - Minimal base image (~65MB vs ~200MB Debian)
 - **Multi-architecture** - Native support for `linux/amd64` and `linux/arm64`
 - **Security hardened** - Non-root user, pinned dependencies, vulnerability scanning
 - **Flexible UID support** - Works with `--user` override for volume mount permissions
-- **Enhanced health checks** - Three-tier validation of web server and CGI functionality
+- **Enhanced health checks** - Five-tier validation of web server and CGI functionality
 - **Automated updates** - Renovate bot manages dependencies with semantic versioning
 
 ## Quick Start
@@ -31,7 +31,7 @@ See [`docker-compose.yml`](docker-compose.yml) for a complete example with secur
 
 ```bash
 # Create hosts.conf (see Configuration section)
-docker-compose up -d
+docker compose up -d
 ```
 
 Access the web interface at: `http://localhost:8000`
@@ -68,6 +68,21 @@ The container supports two health check modes via the `HEALTHCHECK_MODE` environ
 environment:
   - HEALTHCHECK_MODE=strict  # Require UPS connectivity for healthy status
 ```
+
+### Enabling upsset.cgi
+
+NUT ships `upsset.cgi`, an administrative interface that can change UPS settings and
+issue commands such as shutdown. **The image blocks it with a 403 by default.**
+
+To enable it, set `ENABLE_UPSSET=true`:
+
+```yaml
+environment:
+  - ENABLE_UPSSET=true
+```
+
+Only do this behind a reverse proxy that enforces authentication. `upsset.cgi` has no
+authentication of its own, so anything that can reach it can power off your hardware.
 
 ### Content Security Policy
 
@@ -151,48 +166,71 @@ For production deployments, use security options from the example `docker-compos
 Use specific version tags for production (recommended):
 
 ```bash
-# Pin to exact version
-docker pull ghcr.io/owine/nut-cgi:v1.0.0
+# Pin to exact version -- see Releases for the current version
+docker pull ghcr.io/owine/nut-cgi:v1.9.2
 
 # Pin to minor version (receives patch updates)
-docker pull ghcr.io/owine/nut-cgi:v1.0
+docker pull ghcr.io/owine/nut-cgi:v1.9
 
 # Pin to major version (receives minor/patch updates)
 docker pull ghcr.io/owine/nut-cgi:v1
 ```
 
 **Available tags:**
-- `:latest` - Latest tested release (recommended for production)
-- `:v1.0.0` - Specific semantic version (exact version pinning)
-- `:v1.0` - Latest patch in v1.0.x series
-- `:v1` - Latest minor in v1.x series
-- `:main` - Latest tested build from main branch (passes all tests)
-- `:sha-<commit>` - Specific commit build (for debugging/pinning)
+- `:vX.Y.Z` - Specific semantic version (exact pinning; **recommended for production**)
+- `:vX.Y` - Latest patch in that minor series
+- `:vX` - Latest minor in that major series
+- `:latest` - Latest released version
+- `:main` - Latest build from the main branch
+- `:sha-<commit>` - Specific commit build (for debugging)
+
+Tags are published only after a build passes its Trivy scan and functional tests.
+Releases before v1.2.0 were published without the `v` prefix (e.g. `1.1.2`).
 
 ## Architecture
 
 ### Multi-Stage Build
 
-- **Stage 1 (builder):** Minimal preparation stage
-- **Stage 2 (runtime):** Alpine 3.23 with only nut-cgi, lighttpd, and curl
+- **Stage 1 (builder):** Compiles NUT from the upstream release tarball (SHA256-verified),
+  building only the CGI programs, then strips debug symbols and the W3C validator badges
+  from NUT's HTML templates
+- **Stage 2 (runtime):** Alpine 3.24 with lighttpd, curl, gd, and openssl, plus the
+  compiled NUT CGI programs and libraries copied from the builder
 
 ### Package Versions
 
-All packages are explicitly version-pinned for reproducibility:
+Direct APK packages are explicitly version-pinned for reproducibility. Transitive
+packages are resolved by apk, which installs the repository's current build.
 
-- `nut-cgi` - Network UPS Tools CGI programs
+Runtime stage:
+
 - `lighttpd` - Lightweight web server
 - `curl` - Health check utility
+- `gd` - Graphics library used by NUT's CGI programs
+- `openssl` - Pinned explicitly because the base image can lag its own repository
+
+Builder stage:
+
+- `build-base`, `gd-dev`, `curl` - Toolchain and headers for compiling NUT
+
+`nut-cgi` itself is not an APK package here — it is compiled from source, pinned via
+`ARG NUT_VERSION` in the Dockerfile.
 
 Package versions are automatically updated by Renovate bot with semantic versioning.
 
 ### Health Check
 
-Three-tier validation ensures comprehensive health monitoring:
+Five-tier validation ensures comprehensive health monitoring:
 
-1. **Tier 1:** Web server responding (HTTP 200)
+1. **Tier 1:** Web server responding (HTTP success status)
 2. **Tier 2:** CGI execution working (non-empty response)
-3. **Tier 3:** Valid CGI output (no error content)
+3. **Tier 3:** Valid CGI infrastructure (no template or server errors)
+4. **Tier 4:** Valid HTTP response headers (`Content-Type` present)
+5. **Tier 5:** UPS connectivity — only when `HEALTHCHECK_MODE=strict`
+
+Tiers 1-4 validate the container itself and always run. Tier 5 is opt-in because an
+unreachable UPS is usually a network or UPS problem rather than a container problem,
+and failing the health check would restart a perfectly healthy web server.
 
 Check intervals: 30s | Timeout: 10s | Start period: 15s | Retries: 3
 
@@ -217,17 +255,26 @@ docker run --rm -p 8000:80 nut-cgi:test
 
 GitHub Actions workflows:
 
-- **Lint:** Dockerfile (hadolint), YAML, shell scripts
-- **Build:** Multi-arch builds with QEMU, publish to GHCR
-- **Security:** Trivy vulnerability scanning (weekly + post-build)
+- **Lint** (`lint.yml`): Dockerfile (hadolint), shell scripts (shellcheck), YAML
+  (yamllint), and GitHub Actions (actionlint)
+- **Build** (`build.yml`): Multi-arch builds, publish to GHCR, then Trivy scanning
+  and functional tests before promoting tags
+- **Release** (`release.yml`): Automated releases via release-please
+
+Trivy runs as the `Security Scan` job inside `build.yml` after a successful build on
+`main` or a version tag. It does not run on pull requests, and there is no scheduled
+scan.
 
 ### Dependency Management
 
 Renovate bot automatically creates PRs for:
 
-- Alpine base image updates (auto-merge patch versions)
-- Alpine package updates (auto-merge revision bumps)
+- Alpine base image updates (auto-merge patch versions; minor versions need review,
+  since they require updating the APK pins and Renovate's `depNameTemplate` together)
+- Alpine package updates, tracked via Repology — all APK bumps share a single PR so
+  they stay mutually buildable, and auto-merge once CI passes
 - GitHub Actions updates (auto-merge minor/patch)
+- NUT source version updates (manual review required)
 
 ## Troubleshooting
 
@@ -295,7 +342,6 @@ All PRs must pass linting and build workflows.
 - **[SECURITY.md](SECURITY.md)** - Security policy and vulnerability reporting
 - **[CLAUDE.md](CLAUDE.md)** - Development guide and architectural decisions
 - **[hosts.conf.example](hosts.conf.example)** - Configuration examples
-- **[docs/BUILD_OPTIMIZATION.md](docs/BUILD_OPTIMIZATION.md)** - Multi-architecture build optimization guide
 
 ## Links
 

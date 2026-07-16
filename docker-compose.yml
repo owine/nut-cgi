@@ -2,8 +2,12 @@
 
 services:
   nut-cgi:
-    # Use specific version tag in production, not latest
-    image: ghcr.io/owine/nut-cgi:latest@sha256:04bae7d113bbc3939f86da093029f680998110e7c5273bcd44f123d83543fe9c
+    # This file is a local testing example, so it tracks :latest.
+    # For production, pin an exact released version instead -- see the
+    # "Version Pinning" section of README.md. Renovate ignores this file
+    # (see ignorePaths in .github/renovate.json), so a digest pinned here
+    # would never be refreshed.
+    image: ghcr.io/owine/nut-cgi:latest
 
     # Run as non-root user (UID 1000 by default)
     user: "1000:1000"
