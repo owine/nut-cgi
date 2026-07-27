@@ -5,6 +5,16 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [1.9.5](https://github.com/owine/nut-cgi/compare/v1.9.4...v1.9.5) (2026-07-27)
+
+
+### Dependencies
+
+* update actions/checkout action to v7.0.1 ([#84](https://github.com/owine/nut-cgi/issues/84)) ([a590835](https://github.com/owine/nut-cgi/commit/a590835d905732d0ad714bcc6462036c74eb2100))
+* update docker/login-action action to v4.5.0 ([#86](https://github.com/owine/nut-cgi/issues/86)) ([cd110f4](https://github.com/owine/nut-cgi/commit/cd110f4fb915f9fc78f5c7bc2cdb7c438aab88f4))
+* update docker/login-action action to v4.5.1 ([#88](https://github.com/owine/nut-cgi/issues/88)) ([808e423](https://github.com/owine/nut-cgi/commit/808e423041b59c6afed377e9a76c43a85c7e3d7e))
+* update github/codeql-action action to v4.37.3 ([#85](https://github.com/owine/nut-cgi/issues/85)) ([b70edcd](https://github.com/owine/nut-cgi/commit/b70edcd8d1e9a3d4b86930e07927da7228456a4d))
+
 ## [1.9.4](https://github.com/owine/nut-cgi/compare/v1.9.3...v1.9.4) (2026-07-16)
 
 
