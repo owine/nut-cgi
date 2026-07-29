@@ -7,9 +7,12 @@
     "github>owine/renovate-config:alpine"
   ],
   "commitBody": "Update {{depName}} from {{currentVersion}} to {{newVersion}}\n\n{{#if releases}}Release notes:\n{{#each releases}}- {{#if title}}{{title}}{{else}}{{version}}{{/if}}\n{{/each}}{{/if}}",
-  "ignorePaths": [
-    "docker-compose.yml"
-  ],
+  "docker-compose": {
+    "description": "Exclude the example compose file from Renovate. Scoped under the docker-compose manager rather than set at top level: a top-level ignorePaths REPLACES the list inherited from :ignoreModulesAndTests (node_modules, vendor, tests, etc.) instead of merging with it",
+    "ignorePaths": [
+      "docker-compose.yml"
+    ]
+  },
   "vulnerabilityAlerts": {
     "assignees": ["owine"]
   },
