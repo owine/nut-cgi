@@ -5,6 +5,14 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [1.9.6](https://github.com/owine/nut-cgi/compare/v1.9.5...v1.9.6) (2026-08-03)
+
+
+### Dependencies
+
+* update all non-major dependencies ([#90](https://github.com/owine/nut-cgi/issues/90)) ([bccfa28](https://github.com/owine/nut-cgi/commit/bccfa28bda635f2ab681dcf8d592a60b3c7efd6d))
+* update docker/login-action action to v4.6.0 ([#91](https://github.com/owine/nut-cgi/issues/91)) ([127c8a5](https://github.com/owine/nut-cgi/commit/127c8a55386836b4b19894bb75b6b590182f0493))
+
 ## [1.9.5](https://github.com/owine/nut-cgi/compare/v1.9.4...v1.9.5) (2026-07-27)
 
 
