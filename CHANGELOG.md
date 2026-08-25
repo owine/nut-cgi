@@ -5,6 +5,14 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [1.9.9](https://github.com/owine/nut-cgi/compare/v1.9.8...v1.9.9) (2026-08-25)
+
+
+### Dependencies
+
+* update docker/setup-buildx-action action to v4.3.0 ([#98](https://github.com/owine/nut-cgi/issues/98)) ([bcf32c3](https://github.com/owine/nut-cgi/commit/bcf32c3dbed955ea22781b90cfdda1b89d58a7fd))
+* update github/codeql-action action to v4.37.8 ([#100](https://github.com/owine/nut-cgi/issues/100)) ([315ccd7](https://github.com/owine/nut-cgi/commit/315ccd7985e80c149e320fff5978a5131e011288))
+
 ## [1.9.8](https://github.com/owine/nut-cgi/compare/v1.9.7...v1.9.8) (2026-08-17)
 
 
