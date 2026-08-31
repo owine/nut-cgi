@@ -5,6 +5,14 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [1.9.10](https://github.com/owine/nut-cgi/compare/v1.9.9...v1.9.10) (2026-08-31)
+
+
+### Dependencies
+
+* update all non-major dependencies ([#103](https://github.com/owine/nut-cgi/issues/103)) ([639d30c](https://github.com/owine/nut-cgi/commit/639d30c9ed81a335e025fb8b73a1086f302a81bb))
+* update dependency alpine_3_24/openssl to v3.5.8-r0 ([#101](https://github.com/owine/nut-cgi/issues/101)) ([e691089](https://github.com/owine/nut-cgi/commit/e691089f4d775cfe84554c537aab3a168e93b249))
+
 ## [1.9.9](https://github.com/owine/nut-cgi/compare/v1.9.8...v1.9.9) (2026-08-25)
 
 
