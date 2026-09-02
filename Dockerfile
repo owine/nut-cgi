@@ -10,7 +10,7 @@ ARG NUT_VERSION=2.8.5
 RUN apk add --no-cache \
     build-base=0.5-r4 \
     gd-dev=2.3.3-r10 \
-    curl=8.21.0-r0
+    curl=8.22.0-r0
 
 # Download, verify checksum, and extract NUT source
 WORKDIR /build
@@ -83,7 +83,7 @@ LABEL org.opencontainers.image.title="nut-cgi" \
 # 3.5.7-r0), and curl/lighttpd would otherwise keep the older libcrypto3/libssl3.
 RUN apk add --no-cache \
     lighttpd=1.4.85-r0 \
-    curl=8.21.0-r0 \
+    curl=8.22.0-r0 \
     gd=2.3.3-r10 \
     openssl=3.5.8-r0 && \
     # Verify installations
