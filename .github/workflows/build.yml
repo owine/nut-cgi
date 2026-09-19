@@ -56,7 +56,7 @@ jobs:
   # add it to the filter's `if:` so `image` is never left empty (empty ==
   # silent skip, the very failure mode this job exists to prevent).
   changes:
-    runs-on: ubuntu-24.04
+    runs-on: ubuntu-26.04
     outputs:
       image: ${{ steps.filter.outputs.image || steps.force.outputs.image }}
     steps:
@@ -98,16 +98,26 @@ jobs:
     # compile, which dominated wall-clock under the old single-job
     # multi-platform build. amd64 builds on the standard x86 runner, arm64 on
     # GitHub's free public-repo arm runner, and both legs run in parallel.
+    #
+    # Renovate's built-in github-actions manager does NOT see the `runner:`
+    # labels below: it extracts runner labels from literal `runs-on:` values
+    # only and does not traverse strategy.matrix.include[] (confirmed in
+    # doc-scanner #209). Left unmanaged, a runner-image bump would update
+    # every other job in this repo and leave these two behind -- a
+    # split-brain build that still passes CI, since both images work. The
+    # `ubuntu` customManager in the shared preset (owine/renovate-config)
+    # covers these two lines so they bump in the same PR. Keep the
+    # `runner: ubuntu-<major>.<minor>` shape: that manager matches on it.
     runs-on: ${{ matrix.runner }}
     strategy:
       fail-fast: false
       matrix:
         include:
           - platform: linux/amd64
-            runner: ubuntu-24.04
+            runner: ubuntu-26.04
             arch: amd64
           - platform: linux/arm64
-            runner: ubuntu-24.04-arm
+            runner: ubuntu-26.04-arm
             arch: arm64
     permissions:
       contents: read
@@ -183,7 +193,7 @@ jobs:
     # PRs never push, so there is nothing to merge.
     needs: build
     if: github.event_name != 'pull_request'
-    runs-on: ubuntu-24.04
+    runs-on: ubuntu-26.04
     permissions:
       contents: read
       packages: write
@@ -250,7 +260,7 @@ jobs:
 
   test:
     name: Functional Testing
-    runs-on: ubuntu-24.04
+    runs-on: ubuntu-26.04
     permissions:
       contents: read
       packages: read
@@ -422,7 +432,7 @@ jobs:
 
   scan:
     name: Security Scan
-    runs-on: ubuntu-24.04
+    runs-on: ubuntu-26.04
     needs: merge
     if: github.event_name != 'pull_request'
     permissions:
@@ -472,7 +482,7 @@ jobs:
 
   promote:
     name: Tag and Promote Image
-    runs-on: ubuntu-24.04
+    runs-on: ubuntu-26.04
     needs: [merge, test, scan]
     if: |
       github.event_name != 'pull_request' &&
@@ -563,7 +573,7 @@ jobs:
   ci-pass:
     needs: [changes, build, merge, test, scan, promote]
     if: always()
-    runs-on: ubuntu-24.04
+    runs-on: ubuntu-26.04
     steps:
       - name: All required jobs passed or were appropriately skipped
         env:
