@@ -105,9 +105,9 @@ jobs:
     # doc-scanner #209). Left unmanaged, a runner-image bump would update
     # every other job in this repo and leave these two behind -- a
     # split-brain build that still passes CI, since both images work. The
-    # `ubuntu` customManager in .github/renovate.json covers these two lines
-    # so they bump in the same PR. Keep the `runner: ubuntu-<major>.<minor>`
-    # shape: that manager matches on it.
+    # `ubuntu` customManager in the shared preset (owine/renovate-config)
+    # covers these two lines so they bump in the same PR. Keep the
+    # `runner: ubuntu-<major>.<minor>` shape: that manager matches on it.
     runs-on: ${{ matrix.runner }}
     strategy:
       fail-fast: false
