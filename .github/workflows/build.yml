@@ -99,12 +99,15 @@ jobs:
     # multi-platform build. amd64 builds on the standard x86 runner, arm64 on
     # GitHub's free public-repo arm runner, and both legs run in parallel.
     #
-    # The `runner:` labels in the matrix below are INVISIBLE to Renovate: it
-    # extracts runner labels from literal `runs-on:` values only and does not
-    # traverse strategy.matrix.include[] (confirmed in doc-scanner #209). A
-    # Renovate runner-image bump will silently update every other job in this
-    # repo and leave these two behind, producing a split-brain build that
-    # still passes CI. Update these by hand alongside any such PR.
+    # Renovate's built-in github-actions manager does NOT see the `runner:`
+    # labels below: it extracts runner labels from literal `runs-on:` values
+    # only and does not traverse strategy.matrix.include[] (confirmed in
+    # doc-scanner #209). Left unmanaged, a runner-image bump would update
+    # every other job in this repo and leave these two behind -- a
+    # split-brain build that still passes CI, since both images work. The
+    # `ubuntu` customManager in .github/renovate.json covers these two lines
+    # so they bump in the same PR. Keep the `runner: ubuntu-<major>.<minor>`
+    # shape: that manager matches on it.
     runs-on: ${{ matrix.runner }}
     strategy:
       fail-fast: false
