@@ -105,9 +105,14 @@ jobs:
     # doc-scanner #209). Left unmanaged, a runner-image bump would update
     # every other job in this repo and leave these two behind -- a
     # split-brain build that still passes CI, since both images work. The
-    # `ubuntu` customManager in the shared preset (owine/renovate-config)
-    # covers these two lines so they bump in the same PR. Keep the
-    # `runner: ubuntu-<major>.<minor>` shape: that manager matches on it.
+    # `github-runners` customManager in the shared preset
+    # (owine/renovate-config 24ad0fd) covers these two lines, and matches the
+    # built-in extraction byte-for-byte so both halves land in one PR.
+    #
+    # Keep each label on one line as `runner: <os>-<version>`, unquoted or
+    # quoted, and do not split the suffix off: `26.04-arm` is its OWN version
+    # in the github-runners datasource, not `26.04` with decoration. The arm
+    # image can lag x64, so the two legs are tracked independently.
     runs-on: ${{ matrix.runner }}
     strategy:
       fail-fast: false
