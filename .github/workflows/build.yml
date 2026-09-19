@@ -56,7 +56,7 @@ jobs:
   # add it to the filter's `if:` so `image` is never left empty (empty ==
   # silent skip, the very failure mode this job exists to prevent).
   changes:
-    runs-on: ubuntu-24.04
+    runs-on: ubuntu-26.04
     outputs:
       image: ${{ steps.filter.outputs.image || steps.force.outputs.image }}
     steps:
@@ -183,7 +183,7 @@ jobs:
     # PRs never push, so there is nothing to merge.
     needs: build
     if: github.event_name != 'pull_request'
-    runs-on: ubuntu-24.04
+    runs-on: ubuntu-26.04
     permissions:
       contents: read
       packages: write
@@ -250,7 +250,7 @@ jobs:
 
   test:
     name: Functional Testing
-    runs-on: ubuntu-24.04
+    runs-on: ubuntu-26.04
     permissions:
       contents: read
       packages: read
@@ -422,7 +422,7 @@ jobs:
 
   scan:
     name: Security Scan
-    runs-on: ubuntu-24.04
+    runs-on: ubuntu-26.04
     needs: merge
     if: github.event_name != 'pull_request'
     permissions:
@@ -472,7 +472,7 @@ jobs:
 
   promote:
     name: Tag and Promote Image
-    runs-on: ubuntu-24.04
+    runs-on: ubuntu-26.04
     needs: [merge, test, scan]
     if: |
       github.event_name != 'pull_request' &&
@@ -563,7 +563,7 @@ jobs:
   ci-pass:
     needs: [changes, build, merge, test, scan, promote]
     if: always()
-    runs-on: ubuntu-24.04
+    runs-on: ubuntu-26.04
     steps:
       - name: All required jobs passed or were appropriately skipped
         env:
