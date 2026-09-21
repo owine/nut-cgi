@@ -5,6 +5,18 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [1.10.0](https://github.com/owine/nut-cgi/compare/v1.9.11...v1.10.0) (2026-09-21)
+
+
+### Features
+
+* **renovate:** scope the NUT `feat:` to minor/major bumps ([#108](https://github.com/owine/nut-cgi/issues/108)) ([d1f0520](https://github.com/owine/nut-cgi/commit/d1f0520f7fe0f9c3be4267ddd7c042fc80a0df81))
+
+
+### Dependencies
+
+* update alpine docker tag to v3.24.2 ([#114](https://github.com/owine/nut-cgi/issues/114)) ([4bee4a7](https://github.com/owine/nut-cgi/commit/4bee4a75f9bb09b573fb1c23c36a6ec561299fce))
+
 ## [1.9.11](https://github.com/owine/nut-cgi/compare/v1.9.10...v1.9.11) (2026-09-14)
 
 
