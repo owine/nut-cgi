@@ -5,6 +5,13 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [1.10.1](https://github.com/owine/nut-cgi/compare/v1.10.0...v1.10.1) (2026-10-01)
+
+
+### Dependencies
+
+* update openssl apk package to v3.5.9-r0 ([#116](https://github.com/owine/nut-cgi/issues/116)) ([c3b63fb](https://github.com/owine/nut-cgi/commit/c3b63fb25deb73458814250fef84dd7f75b4dd60))
+
 ## [1.10.0](https://github.com/owine/nut-cgi/compare/v1.9.11...v1.10.0) (2026-09-21)
 
 
