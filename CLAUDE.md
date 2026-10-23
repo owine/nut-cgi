@@ -9,8 +9,8 @@ hardening and multi-architecture support. It provides a small containerized web 
 (Uninterruptible Power Supply) systems across a network.
 
 **Versions are not restated in this document.** The Alpine release, the NUT release, and every APK pin live in the
-`Dockerfile`; the current release version lives in `.release-please-manifest.json`. Read those rather than trusting a
-number written here.
+`Dockerfile`; the current release version is the latest published GitHub Release (`gh release view`). Read those
+rather than trusting a number written here.
 
 **Key Technologies:**
 - Alpine Linux (base image; release pinned in `Dockerfile`)
@@ -141,14 +141,13 @@ The workflows in `.github/workflows/` provide automation:
    - Layer caching for faster builds
    - SBOM and provenance attestations
    - Multiple tag variants (semantic versioning)
-   - Triggers: Push to main, tag push (v*.*.*), PRs (build only)
+   - Triggers: Push to main, published release, PRs (build only)
 
-3. **`release.yml`**: Automated releases via release-please
-   - Creates/updates a release PR on every push to main
-   - Merging the release PR creates git tag + GitHub Release
-   - Tag push triggers `build.yml` automatically via GitHub App token
-   - Uses conventional commit prefixes to determine version bumps
-   - Requires two repository secrets: `RELEASE_APP_ID`, `RELEASE_APP_PRIVATE_KEY`
+3. **`release-drafter.yml`**: Release notes via release-drafter
+   - Refreshes one draft GitHub Release on every push to main
+   - Publishing the draft (by a human) creates the git tag and fires `build.yml`
+   - Uses the Conventional Commit type of each PR title to section entries and pick the version bump
+   - Uses only the default `GITHUB_TOKEN`; no secrets
 
 ### Dependency Management
 
@@ -160,7 +159,7 @@ Renovate bot automatically manages updates with this strategy:
 - **GitHub Actions**: Auto-merge minor/patch updates
 - **Non-major dependencies**: Catch-all group for remaining deps, auto-merge minor/patch
 - **NUT source**: Manual review required
-- **Commit type**: `deps:` (a release-please releasable type, triggers patch releases)
+- **Commit type**: `deps:` (a releasable type, drafts a patch release)
 - **Schedule**: Weekly on Mondays
 - **Security overrides**: Immediate processing regardless of schedule
 
@@ -175,45 +174,51 @@ update all three in the same PR:
 
 ### Automated Releases
 
-The `release.yml` workflow uses [release-please](https://github.com/googleapis/release-please) to automate releases:
+The `release-drafter.yml` workflow uses [release-drafter](https://github.com/release-drafter/release-drafter):
 
-1. Every push to `main` triggers release-please
-2. Release-please creates or updates a release PR based on conventional commits
-3. The release PR previews the version bump, changelog entries, and release notes
-4. Merging the release PR creates the git tag and GitHub Release
-5. The tag push triggers `build.yml` to build and publish the Docker image
+1. Every push to `main` refreshes a single **draft** GitHub Release
+2. The draft previews the next version and its release notes, built from the PRs merged since the last release
+3. A human publishes the draft from the Releases page when they want to release
+4. Publishing creates the `vX.Y.Z` tag and fires `release: published`, which runs `build.yml` to build, test, scan and
+   promote the versioned image
 
-Release-please determines version bumps from commit prefixes:
-- `feat:` → minor bump
-- `fix:` → patch bump
-- `deps:` → patch bump (used by Renovate for dependency updates)
-- `feat!:` or `BREAKING CHANGE:` in body → major bump
+`.github/release-drafter.yml` only `_extends` the shared fleet config in `owine/renovate-config`
+(`release-drafter.yml` at its root). Change categories or templates there, not here.
 
-The workflow requires two repository secrets for a GitHub App token (`RELEASE_APP_ID`, `RELEASE_APP_PRIVATE_KEY`). The
-App token is needed because `GITHUB_TOKEN` events do not trigger other workflows. The `ANTHROPIC_API_KEY` secret is no
-longer required for releases.
+A draft always exists. If only hidden types merged since the last release, it reads `_No user-facing changes._` with a
+patch version — don't publish that.
+
+The publish run starts as the human who published, which is why no App token is needed. Never let a workflow publish
+the release with `GITHUB_TOKEN`: events from that token don't trigger other workflows, so `build.yml` would not run and
+the release would ship without an image.
+
+CHANGELOG.md is frozen at v1.10.1; later release notes live only on GitHub Releases.
 
 ### Conventional Commit Standards
 
-This project uses [Conventional Commits](https://www.conventionalcommits.org/) to drive automated releases via
-release-please. The commit type determines whether a release is created and what version bump occurs.
+This project uses [Conventional Commits](https://www.conventionalcommits.org/) to drive release notes and version bumps
+via release-drafter, which reads the **PR title**, not the commits in it. PRs are squash-merged, so the title
+becomes the commit subject — write it as a conventional commit.
 
-**Releasable types** (trigger version bumps):
+**Releasable types** (listed in the draft, trigger version bumps):
 
 | Type | Bump | Description |
 |------|------|-------------|
 | `feat:` | Minor | New features or capabilities |
 | `fix:` | Patch | Bug fixes, security patches |
+| `perf:` | Patch | Performance improvements |
+| `revert:` | Patch | Reverts |
 | `deps:` | Patch | Dependency updates (used by Renovate) |
 
-**Non-releasable types** (no version bump, hidden from changelog):
+**Non-releasable types** (no version bump, hidden from the release notes):
 
-`chore:`, `build:`, `ci:`, `docs:`, `perf:`, `refactor:`, `test:`
+`chore:`, `build:`, `ci:`, `docs:`, `refactor:`, `style:`, `test:`
 
-These commits are included in the next release when a releasable commit is present, but do not appear in CHANGELOG.md.
+These PRs ship in the next release when a releasable PR is present, but do not appear in its notes. A PR title with no
+conventional type is listed unsectioned and drafts a patch.
 
-**Breaking changes:** Append `!` after the type (e.g., `feat!:`) or include `BREAKING CHANGE:` in the commit body to
-trigger a major version bump.
+**Breaking changes:** Append `!` after the type **in the PR title** (e.g., `feat!:`, `fix(api)!:`) to trigger a major
+version bump. A `BREAKING CHANGE:` footer in the PR body is ignored.
 
 **Scopes** are optional and informational (e.g., `fix(security):`, `deps(alpine):`). They do not affect version bumps or
 changelog grouping.
@@ -244,8 +249,8 @@ Release but **no image** — check that `promote` ran before assuming a version 
 
 Releases before v1.2.0 were published without the `v` prefix (e.g. `1.1.2`).
 
-**Production best practice**: Pin to an exact `vX.Y.Z` version. The current release is in
-`.release-please-manifest.json` and on the Releases page.
+**Production best practice**: Pin to an exact `vX.Y.Z` version. The current release is the
+latest published GitHub Release (`gh release view`).
 
 ## Key Files
 
@@ -261,7 +266,7 @@ purpose is not obvious from the name:
 | `hosts.conf.example` | Annotated template for the config users mount at `/etc/nut/hosts.conf`. |
 | `.github/renovate.json` | Dependency automation, including the Repology custom manager for APK pins. |
 | `.github/workflows/build.yml` | Multi-arch build, Trivy scan, publish, and tag promotion. |
-| `.release-please-manifest.json` | Current release version. Managed by release-please; the source of truth for "what version is this". |
+| `.github/release-drafter.yml` | Extends the shared fleet release-drafter config in `owine/renovate-config`. Override nothing here unless the tag shape changes. |
 
 ## Important Implementation Details
 
@@ -366,7 +371,7 @@ The migration maintains backward compatibility with `hosts.conf` format and UPS 
 
 ## Semantic Versioning Policy
 
-Version bumps are determined automatically by release-please based on conventional commit prefixes
+The draft's version bump is determined automatically by release-drafter from PR-title conventional commit prefixes
 (see [Conventional Commit Standards](#conventional-commit-standards) above).
 
 **Patch (v1.0.x):**
@@ -430,7 +435,7 @@ docker exec <container> cat /etc/nut/hosts.conf
 
 ## Related Documentation
 
-- **Changelog**: `CHANGELOG.md` - Release history (maintained by release-please)
+- **Release notes**: [GitHub Releases](https://github.com/owine/nut-cgi/releases); `CHANGELOG.md` is frozen at v1.10.1
 - **Security policy**: `SECURITY.md` - Threat model, hardening, and vulnerability reporting
 - **NUT documentation**: https://networkupstools.org/docs/
 - **Alpine packages**: https://pkgs.alpinelinux.org/packages

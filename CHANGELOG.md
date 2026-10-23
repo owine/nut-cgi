@@ -1,6 +1,8 @@
 # Changelog
 
-All notable changes to this project will be documented in this file.
+Releases after v1.10.1 are documented in [GitHub Releases](https://github.com/owine/nut-cgi/releases).
+
+All notable changes up to v1.10.1 are documented in this file.
 
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).

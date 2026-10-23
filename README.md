@@ -264,10 +264,12 @@ GitHub Actions workflows:
   (yamllint), and GitHub Actions (actionlint)
 - **Build** (`build.yml`): Multi-arch builds, publish to GHCR, then Trivy scanning
   and functional tests before promoting tags
-- **Release** (`release.yml`): Automated releases via release-please
+- **Release Drafter** (`release-drafter.yml`): Keeps a draft GitHub Release up to
+  date on every push to `main`. Publishing the draft creates the `vX.Y.Z` tag and
+  runs `build.yml` to publish the versioned image
 
 Trivy runs as the `Security Scan` job inside `build.yml` after a successful build on
-`main` or a version tag. It does not run on pull requests, and there is no scheduled
+`main` or a published release. It does not run on pull requests, and there is no scheduled
 scan.
 
 ### Dependency Management
@@ -343,7 +345,8 @@ All PRs must pass linting and build workflows.
 
 ## Documentation
 
-- **[CHANGELOG.md](CHANGELOG.md)** - Version history and release notes
+- **[GitHub Releases](https://github.com/owine/nut-cgi/releases)** - Release notes
+- **[CHANGELOG.md](CHANGELOG.md)** - Version history up to v1.10.1
 - **[SECURITY.md](SECURITY.md)** - Security policy and vulnerability reporting
 - **[CLAUDE.md](CLAUDE.md)** - Development guide and architectural decisions
 - **[hosts.conf.example](hosts.conf.example)** - Configuration examples
