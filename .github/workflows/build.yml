@@ -4,7 +4,6 @@ name: Build, Test, and Publish
 "on":
   push:
     branches: ["main"]
-    tags: ["v*.*.*"]
     paths-ignore:
       - "docs/**"
       - "README.md"
@@ -12,9 +11,14 @@ name: Build, Test, and Publish
       - "LICENSE"
       - ".github/renovate.json"
       - "CHANGELOG.md"
-      - ".release-please-manifest.json"
-      - "release-please-config.json"
-      - "version.txt"
+  # Publishing the release-drafter draft creates the vX.Y.Z tag and fires
+  # this as the human who published it. github.ref is refs/tags/<tag> and
+  # github.sha the tagged commit, so promote's version-tag branch matches
+  # exactly as it did for the old tag push. Tag pushes are not a trigger:
+  # with only `branches:` set above, the tag the release creates does not
+  # also start a push run.
+  release:
+    types: [published]
   # Run on every PR (no paths-ignore): the branch ruleset requires `ci-pass`
   # to report, and a workflow-level paths-ignore skips the whole run so the
   # aggregator never reports — leaving the PR permanently BLOCKED. Filtering
@@ -40,15 +44,15 @@ env:
 
 jobs:
   # Detect whether the change set touches image-affecting files. Used to gate
-  # the heavy multi-arch `build` job on PRs so docs/spec/release-please-only
-  # PRs skip the build while `ci-pass` still passes.
+  # the heavy multi-arch `build` job on PRs so docs/spec-only PRs skip the
+  # build while `ci-pass` still passes.
   #
   # This job ALWAYS runs (no top-level `if:`). It must not be skipped, because
   # GitHub propagates a skipped job's status transitively down the `needs`
   # chain: a skipped `changes` would skip `build`, `merge`, and everything
   # after — silently, since `ci-pass` treats skips as success. (That is the
   # #57 regression: making `changes` PR-only stopped all push/tag publishing.)
-  # On non-PR events (push, tag, manual workflow_dispatch) the paths-filter is
+  # On non-PR events (push, release, manual workflow_dispatch) the paths-filter is
   # pointless, so the `force` step short-circuits to image=true; the filter
   # only runs on PRs. These two branches are exhaustive over the configured
   # `on:` triggers — every event either is a `pull_request` (filter) or is not
@@ -60,7 +64,7 @@ jobs:
     outputs:
       image: ${{ steps.filter.outputs.image || steps.force.outputs.image }}
     steps:
-      - name: Force build on non-PR events (push, tag, manual dispatch)
+      - name: Force build on non-PR events (push, release, manual dispatch)
         id: force
         if: github.event_name != 'pull_request'
         run: echo "image=true" >> "$GITHUB_OUTPUT"
@@ -83,13 +87,10 @@ jobs:
               - '!**/*.md'
               - '!LICENSE'
               - '!.github/renovate.json'
-              - '!.release-please-manifest.json'
-              - '!release-please-config.json'
-              - '!version.txt'
 
   build:
     name: Build ${{ matrix.platform }}
-    # `changes` always succeeds and emits image=true on push/tag, so a plain
+    # `changes` always succeeds and emits image=true on push/release, so a plain
     # success-gated condition works here: no skipped dependency to propagate,
     # no status function needed. Skips only on docs-only PRs (image=false).
     needs: changes
@@ -164,7 +165,7 @@ jobs:
           provenance: ${{ github.event_name != 'pull_request' }}
           sbom: ${{ github.event_name != 'pull_request' }}
           no-cache: ${{ github.event.inputs.force-rebuild == 'true' }}
-          # On push/tag: push each arch by digest (no tag yet) so the merge
+          # On push/release: push each arch by digest (no tag yet) so the merge
           # job can assemble the manifest list. On PRs: build only (cacheonly)
           # to validate both arches compile, producing nothing to push.
           outputs: >-
@@ -194,7 +195,7 @@ jobs:
   merge:
     name: Merge Multi-Arch Manifest
     # Assembles the per-arch digests into a single manifest list tagged with
-    # the sha tag the downstream test/scan/promote jobs consume. Push/tag only;
+    # the sha tag the downstream test/scan/promote jobs consume. Push/release only;
     # PRs never push, so there is nothing to merge.
     needs: build
     if: github.event_name != 'pull_request'
