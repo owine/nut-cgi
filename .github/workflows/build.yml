@@ -463,14 +463,17 @@ jobs:
           echo "Pulling image for scanning: $IMAGE_TAG"
           docker pull "$IMAGE_TAG"
 
+      # Report only; the table step below is the gate. With `format: sarif`
+      # trivy-action ignores `severity` unless `limit-severities-for-sarif` is
+      # set, so an exit code here would fail on MEDIUM/UNKNOWN findings too.
+      # Leaving it unset keeps every severity visible in Code Scanning.
       - name: Run Trivy vulnerability scanner
         uses: aquasecurity/trivy-action@ed142fd0673e97e23eac54620cfb913e5ce36c25 # v0.36.0
         with:
           image-ref: ${{ needs.merge.outputs.image-sha-tag }}
           format: 'sarif'
           output: 'trivy-results.sarif'
-          severity: 'HIGH,CRITICAL'
-          exit-code: '1'
+          exit-code: '0'
 
       - name: Upload Trivy results to GitHub Security
         if: always()
@@ -478,13 +481,15 @@ jobs:
         with:
           sarif_file: 'trivy-results.sarif'
 
-      - name: Run Trivy for human-readable output
+      # The gate: fails the job (and so blocks `promote`) on HIGH/CRITICAL only.
+      - name: Gate on HIGH/CRITICAL vulnerabilities
         if: always()
         uses: aquasecurity/trivy-action@ed142fd0673e97e23eac54620cfb913e5ce36c25 # v0.36.0
         with:
           image-ref: ${{ needs.merge.outputs.image-sha-tag }}
           format: 'table'
           severity: 'HIGH,CRITICAL'
+          exit-code: '1'
 
   promote:
     name: Tag and Promote Image
