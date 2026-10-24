@@ -93,6 +93,10 @@ The Dockerfile uses a two-stage build approach:
     transitive packages are left to apk, which installs the repository's current build
   - Renovate manages the base image version and digest updates
   - When updating the Alpine base image, APK package versions must be updated to match the new Alpine release
+  - Because transitive packages are unpinned, the runtime `apk add` line can stay byte-identical while the repo
+    ships a fixed transitive build, and the layer cache would keep the old one. `build.yml` passes
+    `APK_CLOSURE`, a hash of the package set that line resolves to today, so that layer rebuilds exactly when
+    that set changes. `workflow_dispatch` with `force-rebuild` remains the full-cache escape hatch
 
 - **Non-Root User**: Runs as UID 1000 (user `nut`) by default
   - Supports `--user` override for custom UID/GID requirements

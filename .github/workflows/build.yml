@@ -150,6 +150,34 @@ jobs:
         with:
           images: ${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}
 
+      # Cache key for the runtime `apk add` layer (see APK_CLOSURE in the
+      # Dockerfile). Resolves that command's package set against the live repo
+      # on this leg's native arch and hashes it, so the layer rebuilds exactly
+      # when a package it installs has a newer build, and is reused otherwise.
+      # The pins are read from the Dockerfile rather than restated here, so
+      # Renovate bumps carry through. Base-image packages that `apk add` doesn't
+      # upgrade (musl, zlib) are outside this key; base-digest bumps cover them.
+      - name: Compute apk closure cache key
+        id: apk
+        run: |
+          base=$(awk '/^FROM /{img=$2} END{print img}' Dockerfile)
+          # Pins from the last (runtime) stage's `apk add`, up to the first `&&`.
+          pkgs=$(awk '/^FROM /{n=0; on=0}
+                      /apk add/{on=1}
+                      on{for(i=1;i<=NF;i++){if($i=="&&"){on=0;break} if($i~/^[a-z0-9][a-z0-9._+-]*=/)p[++n]=$i}}
+                      END{for(i=1;i<=n;i++)print p[i]}' Dockerfile)
+          if [ -z "$base" ] || [ -z "$pkgs" ]; then
+            echo "::error::Could not read the runtime base image or apk pins from Dockerfile"
+            exit 1
+          fi
+          echo "Base: $base"
+          echo "Pins: ${pkgs//$'\n'/ }"
+          # shellcheck disable=SC2086 # word-split the pin list on purpose
+          closure=$(docker run --rm "$base" apk add --simulate --no-cache $pkgs \
+            | sed -nE 's/^\( *[0-9]+\/[0-9]+\) (Installing|Upgrading) //p' | sort)
+          echo "$closure"
+          echo "key=$(printf '%s\n' "$closure" | sha256sum | cut -d' ' -f1)" >> "$GITHUB_OUTPUT"
+
       - name: Build and push by digest
         id: build
         uses: docker/build-push-action@c3c9e263c25d99ce0380d002d59b67737d91b0dc # v7.4.0
@@ -158,6 +186,7 @@ jobs:
           file: ./Dockerfile
           platforms: ${{ matrix.platform }}
           labels: ${{ steps.meta.outputs.labels }}
+          build-args: APK_CLOSURE=${{ steps.apk.outputs.key }}
           # Per-arch cache scope: the native amd64 and arm64 runs must not
           # clobber each other's gha cache entries.
           cache-from: type=gha,scope=${{ matrix.arch }}
