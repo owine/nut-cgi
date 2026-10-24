@@ -277,8 +277,9 @@ scan.
 Renovate bot automatically creates PRs for:
 
 - Alpine base image updates (auto-merge patch versions; minor versions need review,
-  since they require updating the APK pins and Renovate's `depNameTemplate` together)
-- Alpine package updates, tracked via Repology — all APK bumps share a single PR so
+  since they require updating the APK pins and the Alpine branch in Renovate's `apk`
+  `registryUrls` together)
+- Alpine package updates, looked up in the Alpine package index — all APK bumps share a single PR so
   they stay mutually buildable, and auto-merge once CI passes
 - GitHub Actions updates (auto-merge minor/patch)
 - NUT source version updates (manual review required)

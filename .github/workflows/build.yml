@@ -583,16 +583,17 @@ jobs:
     steps:
       - name: All required jobs passed or were appropriately skipped
         env:
-          NEEDS_JSON: ${{ toJSON(needs) }}
+          # Pass only the results, never `toJSON(needs)`: the runner echoes a
+          # step's entire `env:` block into the log before `run:` starts, so
+          # filtering inside the script cannot keep upstream `outputs` (image
+          # refs, digests) out of it. The cost is that the array carries no
+          # job names; the run's job graph shows which one failed.
+          NEEDS_RESULTS: ${{ toJSON(needs.*.result) }}
         run: |
-          # Log only the per-job `result` field, never the full `needs` blob.
-          # `outputs` declared by upstream jobs can carry sensitive values
-          # (image digests, tokens) so restricting the dump to results keeps
-          # the diagnostic ("which job failed?") without the leak risk.
-          echo "$NEEDS_JSON" | jq 'map_values({result})'
+          echo "$NEEDS_RESULTS" | jq -c .
           # Whitelist acceptable results so future result types ('neutral',
           # 'action_required', etc.) fail closed instead of silently passing.
-          if echo "$NEEDS_JSON" | jq -e 'any(.[].result; . != "success" and . != "skipped")' >/dev/null; then
+          if echo "$NEEDS_RESULTS" | jq -e 'any(.[]; . != "success" and . != "skipped")' >/dev/null; then
             echo "::error::One or more required jobs did not succeed or skip."
             exit 1
           fi

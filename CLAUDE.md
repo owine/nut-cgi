@@ -153,9 +153,10 @@ The workflows in `.github/workflows/` provide automation:
 
 Renovate bot automatically manages updates with this strategy:
 
-- **Alpine APK packages**: Tracked via [Repology](https://repology.org/) datasource, auto-merge updates
+- **Alpine APK packages**: Extracted by Renovate's built-in `dockerfile` manager as datasource `apk`, looked up
+  against the Alpine release line set by `registryUrls` (`branch=v3.XX`) in `.github/renovate.json`; auto-merge updates
 - **Alpine base image digest**: Auto-merge (same version rebuild, no APK changes)
-- **Alpine base image version**: Manual review required (APK pins and Repology `depNameTemplate` must be updated)
+- **Alpine base image version**: Manual review required (APK pins and the `apk` `registryUrls` branch must be updated)
 - **GitHub Actions**: Auto-merge minor/patch updates
 - **Non-major dependencies**: Catch-all group for remaining deps, auto-merge minor/patch
 - **NUT source**: Manual review required
@@ -169,8 +170,8 @@ All auto-merges require passing CI/CD checks.
 update all three in the same PR:
 1. The `FROM alpine:` base image tag and digest in `Dockerfile`
 2. All APK package version pins in `Dockerfile` (query new versions with `apk policy`)
-3. The `depNameTemplate` in `.github/renovate.json` (`alpine_3_X/` → `alpine_3_Y/`) — it must match
-   the base image
+3. The `branch=v3.X` in the `apk` datasource's `registryUrls` in `.github/renovate.json` (→ `branch=v3.Y`) —
+   it must match the base image, or Renovate will propose pins from the old release line
 
 ### Automated Releases
 
@@ -264,7 +265,7 @@ purpose is not obvious from the name:
 | `healthcheck.sh` | Tiered health validation; honours `HEALTHCHECK_MODE`. |
 | `strip-w3c-badges.sh` | Build-time removal of NUT's hotlinked W3C badges. Fails the build if upstream markup drifts past its matcher. |
 | `hosts.conf.example` | Annotated template for the config users mount at `/etc/nut/hosts.conf`. |
-| `.github/renovate.json` | Dependency automation, including the Repology custom manager for APK pins. |
+| `.github/renovate.json` | Dependency automation, including the `apk` `registryUrls` that fixes the Alpine release line for APK pins. |
 | `.github/workflows/build.yml` | Multi-arch build, Trivy scan, publish, and tag promotion. |
 | `.github/release-drafter.yml` | Extends the shared fleet release-drafter config in `owine/renovate-config`. Override nothing here unless the tag shape changes. |
 
