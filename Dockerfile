@@ -81,6 +81,14 @@ LABEL org.opencontainers.image.title="nut-cgi" \
 # already ships the CVE-patched versions.
 # openssl stays pinned: the 3.24.0 base image lags the repo (3.5.6-r0 vs
 # 3.5.7-r0), and curl/lighttpd would otherwise keep the older libcrypto3/libssl3.
+#
+# APK_CLOSURE is a cache key, not a setting: CI passes a hash of the package
+# set this `apk add` resolves to today (see build.yml). The RUN below doesn't
+# change when only a transitive package gets a new build (e.g. a CVE fix), so
+# without the key a cached layer would keep shipping the old version. A changed
+# value re-runs this RUN and the steps after it; the builder stage stays cached.
+# Empty for local builds, which keep plain layer caching.
+ARG APK_CLOSURE=
 RUN apk add --no-cache \
     lighttpd=1.4.85-r0 \
     curl=8.22.0-r0 \
