@@ -137,10 +137,13 @@ jobs:
           - platform: linux/arm64
             runner: ubuntu-26.04-arm
             arch: arm64
+    # packages: write is needed only for push/release, but permissions can't
+    # vary by event. On PRs the login step is skipped and the token never
+    # reaches the BuildKit RUN steps, so PR builds can't use it to push.
+    # No id-token: buildx provenance/SBOM attestations don't use OIDC.
     permissions:
       contents: read
       packages: write
-      id-token: write
     steps:
       - name: Checkout code
         uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
@@ -252,6 +255,11 @@ jobs:
       # tag type is ever added to the meta block.
       image-sha-tag: ${{ fromJSON(steps.meta.outputs.json).tags[0] }}
       image-digest: ${{ steps.inspect.outputs.digest }}
+      # Immutable <image>@<digest> of the manifest list. test, scan and promote
+      # address the image by this rather than the sha tag, so what gets
+      # promoted is byte-for-byte what was tested and scanned, even if another
+      # run (a release for the same commit, a re-run) rewrites the tag.
+      image-ref: ${{ steps.inspect.outputs.ref }}
     steps:
       - name: Download digests
         uses: actions/download-artifact@9000827ccba6bdab643e8b6fd33ac0654aef8333 # v8.0.2
@@ -302,7 +310,12 @@ jobs:
           docker buildx imagetools inspect "$IMAGE_TAG"
           digest=$(docker buildx imagetools inspect "$IMAGE_TAG" \
             --format '{{json .Manifest.Digest}}' | tr -d '"')
+          if [[ ! "$digest" =~ ^sha256:[0-9a-f]{64}$ ]]; then
+            echo "::error::Unexpected manifest digest: '$digest'"
+            exit 1
+          fi
           echo "digest=$digest" >> "$GITHUB_OUTPUT"
+          echo "ref=${IMAGE_TAG%:*}@$digest" >> "$GITHUB_OUTPUT"
           echo "Manifest list pushed: $IMAGE_TAG ($digest)"
 
   test:
@@ -326,12 +339,12 @@ jobs:
 
       - name: Pull built image
         env:
-          IMAGE_TAG: ${{ needs.merge.outputs.image-sha-tag }}
+          IMAGE_REF: ${{ needs.merge.outputs.image-ref }}
         run: |
-          echo "Pulling image: $IMAGE_TAG"
-          docker pull "$IMAGE_TAG"
+          echo "Pulling image: $IMAGE_REF"
+          docker pull "$IMAGE_REF"
           # Tag locally for testing
-          docker tag "$IMAGE_TAG" nut-cgi:test
+          docker tag "$IMAGE_REF" nut-cgi:test
 
       - name: Create test hosts.conf
         run: |
@@ -522,12 +535,26 @@ jobs:
           username: ${{ github.actor }}
           password: ${{ secrets.GITHUB_TOKEN }}
 
-      - name: Pull built image
+      # Scan each platform by its own manifest digest. A manifest-list ref
+      # would let Trivy pick the host's variant, leaving arm64 (which promote
+      # publishes in the same list) unscanned. Attestation manifests are
+      # unknown/unknown and are skipped by the platform match.
+      - name: Resolve per-platform images
+        id: platforms
         env:
-          IMAGE_TAG: ${{ needs.merge.outputs.image-sha-tag }}
+          IMAGE_REF: ${{ needs.merge.outputs.image-ref }}
         run: |
-          echo "Pulling image for scanning: $IMAGE_TAG"
-          docker pull "$IMAGE_TAG"
+          manifest=$(docker buildx imagetools inspect "$IMAGE_REF" --format '{{json .Manifest}}')
+          for p in linux/amd64 linux/arm64; do
+            digest=$(jq -r --arg p "$p" '
+              [.manifests[] | select(.platform.os + "/" + .platform.architecture == $p)]
+              | if length == 1 then .[0].digest
+                else error("expected one \($p) manifest, got \(length)") end' <<<"$manifest")
+            ref="${IMAGE_REF%@*}@$digest"
+            echo "$p: $ref"
+            docker pull -q --platform "$p" "$ref"
+            echo "${p#linux/}=$ref" >> "$GITHUB_OUTPUT"
+          done
 
       # Report only; the table step below is the gate. With `format: sarif`
       # trivy-action ignores `severity` unless `limit-severities-for-sarif` is
@@ -536,7 +563,7 @@ jobs:
       - name: Run Trivy vulnerability scanner
         uses: aquasecurity/trivy-action@ed142fd0673e97e23eac54620cfb913e5ce36c25 # v0.36.0
         with:
-          image-ref: ${{ needs.merge.outputs.image-sha-tag }}
+          image-ref: ${{ steps.platforms.outputs.amd64 }}
           format: 'sarif'
           output: 'trivy-results.sarif'
           exit-code: '0'
@@ -547,12 +574,24 @@ jobs:
         with:
           sarif_file: 'trivy-results.sarif'
 
-      # The gate: fails the job (and so blocks `promote`) on HIGH/CRITICAL only.
-      - name: Gate on HIGH/CRITICAL vulnerabilities
-        if: always()
+      # The gates: fail the job (and so block `promote`) on HIGH/CRITICAL only.
+      # One per platform in the published manifest list. arm64 gets no SARIF
+      # upload: its findings would largely duplicate amd64's, and a second
+      # Code Scanning category would orphan the existing alerts.
+      - name: Gate on HIGH/CRITICAL vulnerabilities (linux/amd64)
+        if: always() && steps.platforms.outcome == 'success'
         uses: aquasecurity/trivy-action@ed142fd0673e97e23eac54620cfb913e5ce36c25 # v0.36.0
         with:
-          image-ref: ${{ needs.merge.outputs.image-sha-tag }}
+          image-ref: ${{ steps.platforms.outputs.amd64 }}
+          format: 'table'
+          severity: 'HIGH,CRITICAL'
+          exit-code: '1'
+
+      - name: Gate on HIGH/CRITICAL vulnerabilities (linux/arm64)
+        if: always() && steps.platforms.outcome == 'success'
+        uses: aquasecurity/trivy-action@ed142fd0673e97e23eac54620cfb913e5ce36c25 # v0.36.0
+        with:
+          image-ref: ${{ steps.platforms.outputs.arm64 }}
           format: 'table'
           severity: 'HIGH,CRITICAL'
           exit-code: '1'
@@ -578,7 +617,7 @@ jobs:
       - name: Determine promotion tags
         id: tags
         env:
-          SOURCE_TAG: ${{ needs.merge.outputs.image-sha-tag }}
+          SOURCE_TAG: ${{ needs.merge.outputs.image-ref }}
           GIT_REF: ${{ github.ref }}
           GIT_REF_NAME: ${{ github.ref_name }}
           IMAGE_FULL: ${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}
@@ -629,10 +668,12 @@ jobs:
       - name: Promotion complete
         env:
           SHA_TAG: ${{ needs.merge.outputs.image-sha-tag }}
+          IMAGE_REF: ${{ needs.merge.outputs.image-ref }}
           PROMOTION_TAGS: ${{ steps.tags.outputs.PROMOTION_TAGS }}
         run: |
           echo "Image promotion successful"
           echo "SHA tag: $SHA_TAG"
+          echo "Digest: $IMAGE_REF"
           if [ -n "$PROMOTION_TAGS" ]; then
             echo "Promoted to: $PROMOTION_TAGS"
           else
