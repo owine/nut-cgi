@@ -133,8 +133,9 @@ Please provide the following information:
    - Runs as the `Security Scan` job in `.github/workflows/build.yml`
    - Triggered after every successful build on `main` and on version tags
    - Does not run on pull requests, and there is no scheduled scan
-   - Scans for HIGH and CRITICAL vulnerabilities; fails the build on a finding
-   - Results published to GitHub Security tab as SARIF
+   - Scans the amd64 and arm64 images separately, each by its own digest, for HIGH and
+     CRITICAL vulnerabilities; a finding on either fails the build and blocks promotion
+   - amd64 results published to GitHub Security tab as SARIF (arm64 is gated only)
 
 2. **Dependency Updates**
    - Renovate bot monitors all dependencies

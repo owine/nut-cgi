@@ -197,7 +197,9 @@ Find the current release on the
 - `:main` - Latest build from the main branch
 - `:sha-<commit>` - Specific commit build (for debugging)
 
-Tags are published only after a build passes its Trivy scan and functional tests.
+The `main`, `latest` and version tags are applied only after both platforms pass the Trivy
+scan and the amd64 image passes the functional tests; promotion copies the exact digest that
+was tested and scanned. `sha-<commit>` is pushed before those gates run.
 Releases before v1.2.0 were published without the `v` prefix (e.g. `1.1.2`).
 
 ## Architecture
@@ -279,7 +281,7 @@ GitHub Actions workflows:
   runs `build.yml` to publish the versioned image
 
 Trivy runs as the `Security Scan` job inside `build.yml` after a successful build on
-`main` or a published release. It does not run on pull requests, and there is no scheduled
+`main` or a published release, gating the amd64 and arm64 images separately. It does not run on pull requests, and there is no scheduled
 scan.
 
 ### Dependency Management
