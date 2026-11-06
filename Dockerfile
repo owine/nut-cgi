@@ -146,14 +146,21 @@ RUN sed -i 's|^server.document-root.*|server.document-root = "/usr/lib/cgi-bin/n
     # single line for CSP_POLICY, without disturbing the headers above it.
     echo '' >> /etc/lighttpd/lighttpd.conf && \
     echo '# Content-Security-Policy (override at runtime with the CSP_POLICY env var)' >> /etc/lighttpd/lighttpd.conf && \
-    echo "setenv.add-response-header += ( \"Content-Security-Policy\" => \"default-src 'self'; img-src 'self' data:; style-src 'self' 'unsafe-inline'\" )" >> /etc/lighttpd/lighttpd.conf && \
+    echo "setenv.add-response-header += ( \"Content-Security-Policy\" => \"default-src 'self'; img-src 'self' data:; style-src 'self' 'unsafe-inline'; form-action 'self'; base-uri 'none'\" )" >> /etc/lighttpd/lighttpd.conf && \
     # Hide server version and disable directory listing
     echo 'server.tag = ""' >> /etc/lighttpd/lighttpd.conf && \
     echo 'dir-listing.activate = "disable"' >> /etc/lighttpd/lighttpd.conf && \
     # Block upsset.cgi by default (administrative interface - security risk)
     echo '' >> /etc/lighttpd/lighttpd.conf && \
     echo '# Block upsset.cgi by default (use ENABLE_UPSSET=true to allow)' >> /etc/lighttpd/lighttpd.conf && \
-    echo '$HTTP["url"] =~ "^/upsset\.cgi" { url.access-deny = ("") }' >> /etc/lighttpd/lighttpd.conf
+    echo '$HTTP["url"] =~ "^/upsset\.cgi" { url.access-deny = ("") }' >> /etc/lighttpd/lighttpd.conf && \
+    # Reject HTML metacharacters in the raw query string. upsstats.cgi prints the
+    # host, template_list and template_single parameters into its HTML error pages
+    # without escaping, so a crafted link could place markup on this origin.
+    # No legitimate parameter (host, ups@host:port, json, treemode, ...) uses them.
+    echo '' >> /etc/lighttpd/lighttpd.conf && \
+    echo '# Reject markup in query strings (upsstats.cgi reflects some parameters unescaped)' >> /etc/lighttpd/lighttpd.conf && \
+    echo '$HTTP["querystring"] =~ "(?i)[<>\"]|%3c|%3e|%22" { url.access-deny = ("") }' >> /etc/lighttpd/lighttpd.conf
 
 # Make NUT config directory world-readable for --user UID override compatibility
 RUN chmod 755 /etc/nut && \

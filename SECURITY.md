@@ -215,6 +215,26 @@ external script sources, which prevents injected markup from executing. Keep
 `CSP_POLICY`, and avoid `CSP_POLICY=none` unless a reverse proxy sets an equivalent
 policy. Treat the network path to upsd as trusted, or tunnel it.
 
+### Unescaped Reflection of Query Parameters
+
+**Consideration:** `upsstats.cgi` also prints request-supplied values into its HTML
+error pages without escaping them: `host` in "Access to that host [...] is not
+authorized", and `template_list` / `template_single` in "can't open template file
+(...)". Unlike the UPS-variable case, this needs no access to upsd — only a dashboard
+user who opens a crafted link. An authenticating reverse proxy does not prevent it,
+because the victim's browser attaches the victim's credentials.
+
+**Security Impact:** Low - under the default CSP, injected markup cannot run script,
+but without further limits it could show spoofed status text, add forms that submit
+off-origin, or redirect the page with `<meta http-equiv="refresh">`.
+
+**Mitigation:** lighttpd rejects, with `403`, any query string containing `<`, `>` or
+`"`, raw or percent-encoded (case-insensitive), before it reaches the CGIs. No
+legitimate parameter uses those characters. The default CSP adds `form-action 'self'`
+and `base-uri 'none'`, neither of which falls back to `default-src`. Keep both
+directives if you override the policy via `CSP_POLICY`. The complete fix — escaping
+the output — belongs upstream in NUT.
+
 ### Network Exposure
 
 **Consideration:** Web interface exposed on port 80 (HTTP, not HTTPS)

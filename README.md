@@ -89,7 +89,7 @@ authentication of its own, so anything that can reach it can power off your hard
 The container sends a strict `Content-Security-Policy` by default:
 
 ```
-default-src 'self'; img-src 'self' data:; style-src 'self' 'unsafe-inline'
+default-src 'self'; img-src 'self' data:; style-src 'self' 'unsafe-inline'; form-action 'self'; base-uri 'none'
 ```
 
 This suits the stock interface, which loads no external resources.
@@ -101,12 +101,21 @@ MITM on port 3493 can therefore inject markup into the status page. Because the
 default policy allows no inline or external scripts, it blocks that injection from
 executing. Keep `script-src` as restrictive as your deployment permits.
 
+The request is an injection source too. `upsstats.cgi` prints the `host`,
+`template_list` and `template_single` query parameters into its error pages
+unescaped, so anyone who can get a dashboard user to open a crafted link could
+place markup on the page — an authenticating proxy doesn't help, since the
+victim's browser sends their credentials. The container rejects any query string
+containing `<`, `>` or `"` (raw or percent-encoded) with `403`, and the policy's
+`form-action 'self'` and `base-uri 'none'` limit what non-script markup that gets
+through can do. Keep both directives if you override the policy.
+
 Override the policy with the `CSP_POLICY` environment variable when something
 downstream of the container injects content into the page:
 
 ```yaml
 environment:
-  - CSP_POLICY: "default-src 'self'; img-src 'self' data:; style-src 'self' 'unsafe-inline'; script-src 'self' https://static.cloudflareinsights.com; connect-src 'self' https://cloudflareinsights.com"
+  - CSP_POLICY: "default-src 'self'; img-src 'self' data:; style-src 'self' 'unsafe-inline'; form-action 'self'; base-uri 'none'; script-src 'self' https://static.cloudflareinsights.com; connect-src 'self' https://cloudflareinsights.com"
 ```
 
 `CSP_POLICY` replaces the whole header rather than adding to it, so restate the
