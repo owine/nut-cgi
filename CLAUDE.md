@@ -81,7 +81,7 @@ yamllint .github/workflows/
 The Dockerfile uses a two-stage build approach:
 
 1. **Builder Stage**: Compiles NUT (`ARG NUT_VERSION`) from the upstream release tarball —
-   downloads it, verifies its SHA256, runs `./configure --with-cgi`, builds only the CGI
+   downloads it, verifies it against the committed `ARG NUT_SHA256`, runs `./configure --with-cgi`, builds only the CGI
    programs and their dependencies, strips debug symbols, and strips the W3C validator
    badges from NUT's HTML templates
 2. **Runtime Stage**: Final minimal image with only required packages

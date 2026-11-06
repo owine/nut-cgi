@@ -1,8 +1,13 @@
 # Multi-stage build for minimal runtime image
 FROM alpine:3.24.3@sha256:be2656061b536c1883c4034790e21d0a09c5aaaf51968b89368a3c0371ea2c9a AS builder
 
-# NUT version to build from source
+# NUT version to build from source, and the SHA256 of its release tarball.
+# The digest is committed rather than fetched alongside the tarball: upstream's
+# release assets are mutable, so a .sha256 downloaded from the same release
+# would accept a tarball replaced after review. Renovate updates both values
+# together (github-release-attachments datasource); review them as a pair.
 ARG NUT_VERSION=2.8.5
+ARG NUT_SHA256=18bf32e59eb764b13da3c4fa70384926d7fa584cb31d2fe7f137a570633eeec1
 
 # Install build dependencies for NUT compilation
 # Note: autoconf/automake/libtool are NOT needed — release tarballs ship pre-generated configure
@@ -12,10 +17,10 @@ RUN apk add --no-cache \
     gd-dev=2.3.3-r10 \
     curl=8.23.0-r0
 
-# Download, verify checksum, and extract NUT source
+# Download, verify against the pinned checksum, and extract NUT source
 WORKDIR /build
 RUN curl -L https://github.com/networkupstools/nut/releases/download/v${NUT_VERSION}/nut-${NUT_VERSION}.tar.gz -o nut-${NUT_VERSION}.tar.gz && \
-    curl -L https://github.com/networkupstools/nut/releases/download/v${NUT_VERSION}/nut-${NUT_VERSION}.tar.gz.sha256 -o nut-${NUT_VERSION}.tar.gz.sha256 && \
+    echo "${NUT_SHA256}  nut-${NUT_VERSION}.tar.gz" > nut-${NUT_VERSION}.tar.gz.sha256 && \
     sha256sum -c nut-${NUT_VERSION}.tar.gz.sha256 && \
     tar -xzf nut-${NUT_VERSION}.tar.gz && \
     rm nut-${NUT_VERSION}.tar.gz nut-${NUT_VERSION}.tar.gz.sha256

@@ -19,14 +19,14 @@
   "customManagers": [
     {
       "customType": "regex",
-      "description": "Track NUT (Network UPS Tools) releases from GitHub",
+      "description": "Track NUT (Network UPS Tools) releases from GitHub, with the pinned SHA256 of the release tarball. github-release-attachments finds the current release asset whose checksum file lists currentDigest (nut-X.tar.gz.sha256), then reads the same-named file in the new release; it falls back to downloading and hashing the tarball.",
       "managerFilePatterns": [
         "/Dockerfile$/"
       ],
       "matchStrings": [
-        "# NUT version to build from source\\s+ARG NUT_VERSION=(?<currentValue>.*?)\\n"
+        "ARG NUT_VERSION=(?<currentValue>\\S+)\\s+ARG NUT_SHA256=(?<currentDigest>[a-f0-9]{64})\\n"
       ],
-      "datasourceTemplate": "github-releases",
+      "datasourceTemplate": "github-release-attachments",
       "depNameTemplate": "networkupstools/nut",
       "extractVersionTemplate": "^v(?<version>.*)$"
     }
@@ -38,8 +38,8 @@
       "registryUrls": ["https://dl-cdn.alpinelinux.org/alpine?branch=v3.24&components=main,community&arch=x86_64"]
     },
     {
-      "description": "NUT source version — manual review on every bump, whatever the update type. The image builds NUT from source, so a bump is a rebuild, not a tag swap. Commit type is left to the fleet baseline (`deps:` => patch release); the rule below re-types the bumps that deserve more.",
-      "matchDatasources": ["github-releases"],
+      "description": "NUT source version — manual review on every bump, whatever the update type. The image builds NUT from source, so a bump is a rebuild, not a tag swap. Each bump also carries the tarball SHA256 the build verifies against: check that it matches upstream's published .sha256 (or the GitHub asset digest) before merging. Commit type is left to the fleet baseline (`deps:` => patch release); the rule below re-types the bumps that deserve more.",
+      "matchDatasources": ["github-release-attachments"],
       "matchPackageNames": ["networkupstools/nut"],
       "groupName": "nut source",
       "automerge": false,
@@ -47,7 +47,7 @@
     },
     {
       "description": "The ONE `feat:` in this repo's Renovate surface, and a deliberate exception to the fleet rule that no dependency update is ever typed `feat:` (see owine/renovate-config's README). It holds here because this repo is a packaging shim: its whole output is NUT, so the version a user runs IS this dependency's version — the question Renovate can't normally answer (\"is this bump consumer-visible?\") has a fixed answer of yes. Scoped to minor/major only so an upstream PATCH stays `deps:` (patch release) instead of cutting a minor here: the wrapper's semver then tracks upstream's own update type rather than drifting a digit ahead of it. Not `feat!:` on major — an upstream major is not automatically breaking for this image's users.",
-      "matchDatasources": ["github-releases"],
+      "matchDatasources": ["github-release-attachments"],
       "matchPackageNames": ["networkupstools/nut"],
       "matchUpdateTypes": ["minor", "major"],
       "semanticCommitType": "feat"

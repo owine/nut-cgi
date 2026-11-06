@@ -47,6 +47,8 @@ We provide security updates for the following versions:
    - SBOM (Software Bill of Materials) attestations
    - Provenance attestations for build reproducibility
    - SHA256 digest pinning for base images
+   - NUT source tarball verified against a SHA256 committed in the Dockerfile
+     (`ARG NUT_SHA256`), not a checksum fetched from the same mutable release
 
 6. **Minimal Attack Surface**
    - Minimal Alpine Linux base image
