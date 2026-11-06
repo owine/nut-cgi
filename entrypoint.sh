@@ -41,17 +41,24 @@ if [ "${ENABLE_UPSSET:-}" = "true" ] || [ -n "${CSP_POLICY:-}" ]; then
             ;;
         *)
             # The value is interpolated into a quoted lighttpd string, so a double
-            # quote or newline would let it inject arbitrary config directives.
+            # quote or newline would let it inject arbitrary config directives. A
+            # backslash can escape the closing quote (lighttpd then fails to start
+            # with an opaque parse error), and other control bytes would be sent
+            # raw in the header. No valid policy contains any of them.
             case "${CSP_POLICY}" in
                 *'"'*)
                     echo "entrypoint: CSP_POLICY must not contain double quotes" >&2
                     exit 1
                     ;;
+                *\\*)
+                    echo "entrypoint: CSP_POLICY must not contain backslashes" >&2
+                    exit 1
+                    ;;
+                *[[:cntrl:]]*)
+                    echo "entrypoint: CSP_POLICY must not contain newlines or other control characters" >&2
+                    exit 1
+                    ;;
             esac
-            if [ "$(printf '%s' "${CSP_POLICY}" | wc -l)" -ne 0 ]; then
-                echo "entrypoint: CSP_POLICY must not contain newlines" >&2
-                exit 1
-            fi
 
             # Read the policy via ENVIRON rather than sed's replacement text: sed
             # would reinterpret & and \ in the value, awk's ENVIRON does not.

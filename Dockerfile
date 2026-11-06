@@ -24,7 +24,7 @@ RUN apk add --no-cache \
 WORKDIR /build
 # The tarball and its top-level directory are named without the v prefix.
 RUN nut="nut-${NUT_VERSION#v}" && \
-    curl -L "https://github.com/networkupstools/nut/releases/download/${NUT_VERSION}/${nut}.tar.gz" -o "${nut}.tar.gz" && \
+    curl -fsSL --proto '=https' "https://github.com/networkupstools/nut/releases/download/${NUT_VERSION}/${nut}.tar.gz" -o "${nut}.tar.gz" && \
     echo "${NUT_SHA256}  ${nut}.tar.gz" > "${nut}.tar.gz.sha256" && \
     sha256sum -c "${nut}.tar.gz.sha256" && \
     tar -xzf "${nut}.tar.gz" && \
