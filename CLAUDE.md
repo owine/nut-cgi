@@ -15,7 +15,7 @@ rather than trusting a number written here.
 **Key Technologies:**
 - Alpine Linux (base image; release pinned in `Dockerfile`)
 - lighttpd (web server)
-- nut-cgi (Network UPS Tools CGI programs, compiled from source; release pinned via `ARG NUT_VERSION`)
+- nut-cgi (Network UPS Tools CGI programs, compiled from source; release pinned via `ARG NUT_VERSION`, the v-prefixed upstream tag)
 - Docker multi-stage builds
 - GitHub Actions (CI/CD)
 - Renovate (automated dependency management)

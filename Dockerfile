@@ -1,12 +1,15 @@
 # Multi-stage build for minimal runtime image
 FROM alpine:3.24.3@sha256:be2656061b536c1883c4034790e21d0a09c5aaaf51968b89368a3c0371ea2c9a AS builder
 
-# NUT version to build from source, and the SHA256 of its release tarball.
+# NUT release to build from source, and the SHA256 of its release tarball.
+# NUT_VERSION is the upstream git tag, v prefix included: Renovate's
+# github-release-attachments datasource looks the release up by this exact
+# tag, so a bare "2.8.5" 404s (the tag is v2.8.5).
 # The digest is committed rather than fetched alongside the tarball: upstream's
 # release assets are mutable, so a .sha256 downloaded from the same release
 # would accept a tarball replaced after review. Renovate updates both values
 # together (github-release-attachments datasource); review them as a pair.
-ARG NUT_VERSION=2.8.5
+ARG NUT_VERSION=v2.8.5
 ARG NUT_SHA256=18bf32e59eb764b13da3c4fa70384926d7fa584cb31d2fe7f137a570633eeec1
 
 # Install build dependencies for NUT compilation
@@ -19,14 +22,17 @@ RUN apk add --no-cache \
 
 # Download, verify against the pinned checksum, and extract NUT source
 WORKDIR /build
-RUN curl -L https://github.com/networkupstools/nut/releases/download/v${NUT_VERSION}/nut-${NUT_VERSION}.tar.gz -o nut-${NUT_VERSION}.tar.gz && \
-    echo "${NUT_SHA256}  nut-${NUT_VERSION}.tar.gz" > nut-${NUT_VERSION}.tar.gz.sha256 && \
-    sha256sum -c nut-${NUT_VERSION}.tar.gz.sha256 && \
-    tar -xzf nut-${NUT_VERSION}.tar.gz && \
-    rm nut-${NUT_VERSION}.tar.gz nut-${NUT_VERSION}.tar.gz.sha256
+# The tarball and its top-level directory are named without the v prefix.
+RUN nut="nut-${NUT_VERSION#v}" && \
+    curl -L "https://github.com/networkupstools/nut/releases/download/${NUT_VERSION}/${nut}.tar.gz" -o "${nut}.tar.gz" && \
+    echo "${NUT_SHA256}  ${nut}.tar.gz" > "${nut}.tar.gz.sha256" && \
+    sha256sum -c "${nut}.tar.gz.sha256" && \
+    tar -xzf "${nut}.tar.gz" && \
+    mv "${nut}" nut && \
+    rm "${nut}.tar.gz" "${nut}.tar.gz.sha256"
 
 # Build NUT with CGI support
-WORKDIR /build/nut-${NUT_VERSION}
+WORKDIR /build/nut
 RUN ./configure \
     --prefix=/usr \
     --sysconfdir=/etc/nut \
