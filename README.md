@@ -81,8 +81,20 @@ environment:
   - ENABLE_UPSSET=true
 ```
 
-Only do this behind a reverse proxy that enforces authentication. `upsset.cgi` has no
-authentication of its own, so anything that can reach it can power off your hardware.
+This only lifts the image's 403. NUT's own guard still applies: `upsset.cgi` refuses to
+run until `upsset.conf` contains an uncommented `I_HAVE_SECURED_MY_CGI_DIRECTORY` line,
+and the copy in the image ships with it commented out. Mount your own:
+
+```yaml
+volumes:
+  - ./upsset.conf:/etc/nut/upsset.conf:ro   # containing: I_HAVE_SECURED_MY_CGI_DIRECTORY
+```
+
+Only do this behind a reverse proxy that enforces authentication **and terminates TLS**.
+`upsset.cgi` has no access control of its own: it takes upsd usernames and passwords in a
+form and uses them to change settings or send commands such as shutdown. The container
+serves plain HTTP and talks to upsd in plaintext, so without TLS in front those credentials
+cross the network in the clear.
 
 ### Content Security Policy
 
@@ -115,7 +127,7 @@ downstream of the container injects content into the page:
 
 ```yaml
 environment:
-  - CSP_POLICY: "default-src 'self'; img-src 'self' data:; style-src 'self' 'unsafe-inline'; form-action 'self'; base-uri 'none'; script-src 'self' https://static.cloudflareinsights.com; connect-src 'self' https://cloudflareinsights.com"
+  - "CSP_POLICY=default-src 'self'; img-src 'self' data:; style-src 'self' 'unsafe-inline'; form-action 'self'; base-uri 'none'; script-src 'self' https://static.cloudflareinsights.com; connect-src 'self' https://cloudflareinsights.com"
 ```
 
 `CSP_POLICY` replaces the whole header rather than adding to it, so restate the
@@ -135,8 +147,9 @@ above, a deployment with no CSP from either layer is genuinely exposed. Prefer `
 over configuring both layers: two CSP headers are intersected by the browser rather
 than one overriding the other, which is rarely what you want.
 
-The container refuses to start if `CSP_POLICY` contains a double quote or newline,
-since the value is interpolated into the lighttpd config.
+The container refuses to start if `CSP_POLICY` contains a double quote, a backslash, a
+newline or any other control character, since the value is interpolated into the lighttpd
+config.
 
 #### Reverse proxies that inject content
 

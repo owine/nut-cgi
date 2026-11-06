@@ -160,7 +160,8 @@ docker run --rm \
   ghcr.io/owine/nut-cgi:latest
 
 # 3. Verify non-root execution
-docker run --rm ghcr.io/owine/nut-cgi:latest id
+# (--entrypoint is required: the entrypoint always starts lighttpd and ignores arguments)
+docker run --rm --entrypoint id ghcr.io/owine/nut-cgi:latest
 # Expected: uid=1000(nut) gid=1000(nut)
 ```
 
