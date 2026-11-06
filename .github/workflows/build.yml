@@ -402,6 +402,31 @@ jobs:
           fi
           echo "upsset.cgi correctly blocked (HTTP 403)"
 
+      - name: Test query-string markup is rejected
+        run: |
+          # upsstats.cgi reflects host/template_list/template_single unescaped,
+          # so lighttpd must reject HTML metacharacters before the CGI sees them.
+          for query in 'host=%3Cb%3Ex%3C%2Fb%3E' 'template_list=%3cmeta%3e' 'host=%22x'; do
+            status=$(curl -s -o /dev/null -w "%{http_code}" "http://localhost:8080/upsstats.cgi?${query}")
+            if [ "$status" != "403" ]; then
+              echo "ERROR: query '${query}' should return 403, got $status"
+              exit 1
+            fi
+          done
+          status=$(curl -s -o /dev/null -w "%{http_code}" 'http://localhost:8080/upsstats.cgi?host=testups@localhost')
+          if [ "$status" != "200" ]; then
+            echo "ERROR: legitimate host query should return 200, got $status"
+            exit 1
+          fi
+          csp=$(curl -sI http://localhost:8080/upsstats.cgi | grep -i '^Content-Security-Policy:')
+          for directive in "form-action 'self'" "base-uri 'none'"; do
+            if ! printf '%s' "$csp" | grep -qF "$directive"; then
+              echo "ERROR: CSP missing ${directive}: ${csp}"
+              exit 1
+            fi
+          done
+          echo "Query-string markup rejected; CSP restricts form-action and base-uri"
+
       - name: Test CGI execution
         run: |
           echo "Testing CGI execution..."
