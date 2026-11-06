@@ -42,6 +42,13 @@ env:
   REGISTRY: ghcr.io
   IMAGE_NAME: ${{ github.repository }}
 
+# Read-only default for every job. Jobs that need more (build, merge, test,
+# scan, promote) declare their own block, which replaces this one outright —
+# job-level permissions do not merge with the workflow-level set. Without
+# this, jobs with no block of their own inherit the repo default token.
+permissions:
+  contents: read
+
 jobs:
   # Detect whether the change set touches image-affecting files. Used to gate
   # the heavy multi-arch `build` job on PRs so docs/spec-only PRs skip the
@@ -61,6 +68,11 @@ jobs:
   # silent skip, the very failure mode this job exists to prevent).
   changes:
     runs-on: ubuntu-26.04
+    # dorny/paths-filter lists the PR's changed files through the API on
+    # pull_request events, which needs pull-requests: read.
+    permissions:
+      contents: read
+      pull-requests: read
     outputs:
       image: ${{ steps.filter.outputs.image || steps.force.outputs.image }}
     steps:
@@ -614,6 +626,8 @@ jobs:
     needs: [changes, build, merge, test, scan, promote]
     if: always()
     runs-on: ubuntu-26.04
+    # Reads only `needs.*.result` from expression context; no API access.
+    permissions: {}
     steps:
       - name: All required jobs passed or were appropriately skipped
         env:
