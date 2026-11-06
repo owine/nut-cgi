@@ -195,9 +195,9 @@ Releases before v1.2.0 were published without the `v` prefix (e.g. `1.1.2`).
 
 ### Multi-Stage Build
 
-- **Stage 1 (builder):** Compiles NUT from the upstream release tarball (SHA256-verified),
-  building only the CGI programs, then strips debug symbols and the W3C validator badges
-  from NUT's HTML templates
+- **Stage 1 (builder):** Compiles NUT from the upstream release tarball, verified against a
+  SHA256 committed in the Dockerfile, building only the CGI programs, then strips debug
+  symbols and the W3C validator badges from NUT's HTML templates
 - **Stage 2 (runtime):** Alpine with lighttpd, curl, gd, and openssl, plus the compiled
   NUT CGI programs and libraries copied from the builder
 
@@ -219,7 +219,8 @@ Builder stage:
 - `build-base`, `gd-dev`, `curl` - Toolchain and headers for compiling NUT
 
 `nut-cgi` itself is not an APK package here — it is compiled from source, pinned via
-`ARG NUT_VERSION` in the Dockerfile.
+`ARG NUT_VERSION` in the Dockerfile, with the tarball's digest in `ARG NUT_SHA256`.
+Renovate updates the two together.
 
 Package versions are automatically updated by Renovate bot with semantic versioning.
 
