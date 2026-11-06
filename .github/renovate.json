@@ -19,7 +19,7 @@
   "customManagers": [
     {
       "customType": "regex",
-      "description": "Track NUT (Network UPS Tools) releases from GitHub, with the pinned SHA256 of the release tarball. github-release-attachments finds the current release asset whose checksum file lists currentDigest (nut-X.tar.gz.sha256), then reads the same-named file in the new release; it falls back to downloading and hashing the tarball.",
+      "description": "Track NUT (Network UPS Tools) releases from GitHub, with the pinned SHA256 of the release tarball. currentValue must be the literal release tag (v2.8.5): this datasource fetches releases/tags/<currentValue>, so no extractVersionTemplate. github-release-attachments finds the current release asset whose checksum file lists currentDigest (nut-X.tar.gz.sha256), then reads the same-named file in the new release; it falls back to downloading and hashing the tarball.",
       "managerFilePatterns": [
         "/Dockerfile$/"
       ],
@@ -27,8 +27,7 @@
         "ARG NUT_VERSION=(?<currentValue>\\S+)\\s+ARG NUT_SHA256=(?<currentDigest>[a-f0-9]{64})\\n"
       ],
       "datasourceTemplate": "github-release-attachments",
-      "depNameTemplate": "networkupstools/nut",
-      "extractVersionTemplate": "^v(?<version>.*)$"
+      "depNameTemplate": "networkupstools/nut"
     }
   ],
   "packageRules": [
@@ -42,6 +41,7 @@
       "matchDatasources": ["github-release-attachments"],
       "matchPackageNames": ["networkupstools/nut"],
       "groupName": "nut source",
+      "allowedVersions": "/^v\\d+\\.\\d+\\.\\d+$/",
       "automerge": false,
       "addLabels": ["needs-review"]
     },
