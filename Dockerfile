@@ -182,9 +182,10 @@ RUN chmod 755 /etc/nut && \
 COPY --chmod=0755 healthcheck.sh /healthcheck.sh
 COPY --chmod=0755 entrypoint.sh /entrypoint.sh
 
-# Switch to non-root user for runtime
+# Switch to non-root user for runtime (the nut user/group created above).
+# Numeric so Kubernetes runAsNonRoot can verify it without reading /etc/passwd.
 # Can be overridden with docker run --user <uid>:<gid>
-USER nut
+USER 1000:1000
 
 # NOTE: This container exposes plain HTTP on port 80.
 # For production use, deploy behind a reverse proxy (e.g., Traefik, nginx)
