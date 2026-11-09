@@ -43,7 +43,7 @@ env:
   IMAGE_NAME: ${{ github.repository }}
 
 # Read-only default for every job. Jobs that need more (build, merge, test,
-# scan, promote) declare their own block, which replaces this one outright —
+# scan, promote, apk-pin-issue) declare their own block, which replaces this one outright —
 # job-level permissions do not merge with the workflow-level set. Without
 # this, jobs with no block of their own inherit the repo default token.
 permissions:
@@ -144,6 +144,12 @@ jobs:
     permissions:
       contents: read
       packages: write
+    # For apk-pin-issue. A matrix job's outputs come from whichever leg sets
+    # them last, but both legs give the same result here (same Dockerfile,
+    # same base, same Alpine repository), so one shared name is fine.
+    outputs:
+      pin-findings: ${{ steps.pincheck.outputs.findings }}
+      pin-check-ok: ${{ steps.pincheck.outputs.ok }}
     steps:
       - name: Checkout code
         uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
@@ -203,14 +209,20 @@ jobs:
       # isn't in the base, so a name match would never see it. For each pin,
       # look up its origin in the repo, then compare every base package from
       # that origin against the pinned version in apk's own version order.
-      # A warning, not a failure.
+      # A warning, not a failure. The findings also go out as outputs for
+      # apk-pin-issue on main; ok says the check really ran (a failed apk
+      # update or docker run isn't "no findings").
       - name: Flag apk pins the base image already satisfies
+        id: pincheck
         env:
           BASE: ${{ steps.apk.outputs.base }}
           PINS: ${{ steps.apk.outputs.pins }}
         run: |
-          docker run --rm -e PINS="$PINS" "$BASE" sh -c '
-            apk update -q >/dev/null 2>&1
+          out=$(docker run --rm -e PINS="$PINS" "$BASE" sh -c '
+            if ! apk update -q >/dev/null 2>&1; then
+              echo PINCHECK-UNAVAILABLE
+              exit 0
+            fi
             for p in $PINS; do
               n=${p%%=*}; want=${p#*=}
               origin=$(apk list "$n" 2>/dev/null | sed -n "s/^$n-[^ ]* [^ ]* {\([^}]*\)}.*/\1/p" | head -n1)
@@ -223,7 +235,21 @@ jobs:
                   echo "$n: base has $pkgver, pin $want still needed"
                 fi
               done
-            done'
+            done') || out=PINCHECK-UNAVAILABLE
+          printf '%s\n' "$out"
+          if printf '%s\n' "$out" | grep -qx PINCHECK-UNAVAILABLE; then
+            echo "::warning file=Dockerfile::apk pin check skipped: apk update or docker run failed"
+            echo "ok=false" >> "$GITHUB_OUTPUT"
+            exit 0
+          fi
+          findings=$(printf '%s\n' "$out" | sed -n 's/^::warning file=Dockerfile:://p')
+          eof=$(openssl rand -hex 16)
+          {
+            echo "ok=true"
+            echo "findings<<$eof"
+            if [ -n "$findings" ]; then printf '%s\n' "$findings"; fi
+            echo "$eof"
+          } >> "$GITHUB_OUTPUT"
 
       - name: Build and push by digest
         id: build
@@ -711,6 +737,34 @@ jobs:
           else
             echo "No additional tags applied"
           fi
+
+  # The pin check's warnings land in Renovate base-bump PRs that automerge,
+  # where nobody reads them. On main, this keeps one apk-pin-satisfied issue
+  # open while any pin is satisfied by the base, and closes it once none are.
+  # It's the only job that can write issues, and it never runs for a PR,
+  # release or manual dispatch. On push, `changes` forces image=true, so
+  # `build` always runs before it; docs-only pushes skip the whole workflow
+  # (paths-ignore), but a base or pin change always touches the Dockerfile.
+  # Deliberately not in ci-pass's `needs`: it reports, it doesn't gate.
+  apk-pin-issue:
+    name: apk pin issue
+    needs: build
+    if: github.event_name == 'push' && github.ref == 'refs/heads/main'
+    runs-on: ubuntu-26.04
+    timeout-minutes: 5
+    permissions:
+      contents: read # checkout; a job's permissions replace the workflow's
+      issues: write
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+
+      - name: Keep the apk-pin-satisfied issue in step
+        env:
+          FINDINGS: ${{ needs.build.outputs.pin-findings }}
+          OK: ${{ needs.build.outputs.pin-check-ok }}
+          GH_TOKEN: ${{ github.token }}
+        run: .github/scripts/apk-pin-issue.sh
 
   # Stable-named aggregator so the branch ruleset can require a single
   # `ci-pass` check regardless of how the underlying matrix/conditional
