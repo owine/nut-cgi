@@ -198,8 +198,8 @@ jobs:
           } >> "$GITHUB_OUTPUT"
 
       # A pin on a package the base image already has is only needed until the
-      # base catches up. The match is by apk origin, not name: the openssl pin
-      # exists to pull the base's libcrypto3/libssl3 forward, and openssl itself
+      # base catches up. The match is by apk origin, not name: e.g. an openssl
+      # pin would pull the base's libcrypto3/libssl3 forward, and openssl itself
       # isn't in the base, so a name match would never see it. For each pin,
       # look up its origin in the repo, then compare every base package from
       # that origin against the pinned version in apk's own version order.
