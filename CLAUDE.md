@@ -97,6 +97,10 @@ The Dockerfile uses a two-stage build approach:
     ships a fixed transitive build, and the layer cache would keep the old one. `build.yml` passes
     `APK_CLOSURE`, a hash of the package set that line resolves to today, so that layer rebuilds exactly when
     that set changes. `workflow_dispatch` with `force-rebuild` remains the full-cache escape hatch
+  - A pin on a package the base image already has, directly or through its apk origin (e.g. `openssl` pulling
+    the base's `libcrypto3`/`libssl3` forward), is temporary: `apk add` doesn't upgrade base packages on its own,
+    so the pin carries a repo fix the base image hasn't caught up to yet. The `build.yml` step "Flag apk pins the
+    base image already satisfies" emits a warning once the base ships that version or newer; drop the pin then
 
 - **Non-Root User**: Runs as UID 1000 (user `nut`) by default
   - Supports `--user` override for custom UID/GID requirements
