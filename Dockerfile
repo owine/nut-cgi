@@ -90,8 +90,6 @@ LABEL org.opencontainers.image.title="nut-cgi" \
 # Direct deps (lighttpd, curl, gd) are pinned. nghttp2-libs/libxpm/zlib are no
 # longer pinned individually — apk resolves them transitively and the base image
 # already ships the CVE-patched versions.
-# openssl stays pinned: the 3.24.0 base image lags the repo (3.5.6-r0 vs
-# 3.5.7-r0), and curl/lighttpd would otherwise keep the older libcrypto3/libssl3.
 #
 # APK_CLOSURE is a cache key, not a setting: CI passes a hash of the package
 # set this `apk add` resolves to today (see build.yml). The RUN below doesn't
@@ -103,8 +101,7 @@ ARG APK_CLOSURE=
 RUN apk add --no-cache \
     lighttpd=1.4.85-r0 \
     curl=8.23.0-r0 \
-    gd=2.3.3-r10 \
-    openssl=3.5.9-r0 && \
+    gd=2.3.3-r10 && \
     # Verify installations
     lighttpd -v && \
     curl --version

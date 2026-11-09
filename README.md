@@ -222,7 +222,7 @@ Releases before v1.2.0 were published without the `v` prefix (e.g. `1.1.2`).
 - **Stage 1 (builder):** Compiles NUT from the upstream release tarball, verified against a
   SHA256 committed in the Dockerfile, building only the CGI programs, then strips debug
   symbols and the W3C validator badges from NUT's HTML templates
-- **Stage 2 (runtime):** Alpine with lighttpd, curl, gd, and openssl, plus the compiled
+- **Stage 2 (runtime):** Alpine with lighttpd, curl, and gd, plus the compiled
   NUT CGI programs and libraries copied from the builder
 
 ### Package Versions
@@ -236,7 +236,6 @@ Runtime stage:
 - `lighttpd` - Lightweight web server
 - `curl` - Health check utility
 - `gd` - Graphics library used by NUT's CGI programs
-- `openssl` - Pinned explicitly because the base image can lag its own repository
 
 Builder stage:
 
