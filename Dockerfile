@@ -87,9 +87,13 @@ LABEL org.opencontainers.image.title="nut-cgi" \
 
 # Install runtime dependencies
 # Package versions are pinned to Alpine 3.24 repository versions.
-# Direct deps (lighttpd, curl, gd) are pinned. nghttp2-libs/libxpm/zlib are no
-# longer pinned individually — apk resolves them transitively and the base image
-# already ships the CVE-patched versions.
+# Direct deps (lighttpd, curl, gd) are pinned. Other transitive packages are left
+# to apk, which installs the repo's current build.
+#
+# zlib is a temporary pin: the base image ships 1.3.2-r1, the repo has 1.4-r0
+# (CVE-2026-4738), and apk won't upgrade a package already in the base on its
+# own. Drop it once build.yml's "Flag apk pins the base image already satisfies"
+# step warns that the base has caught up.
 #
 # APK_CLOSURE is a cache key, not a setting: CI passes a hash of the package
 # set this `apk add` resolves to today (see build.yml). The RUN below doesn't
@@ -101,7 +105,8 @@ ARG APK_CLOSURE=
 RUN apk add --no-cache \
     lighttpd=1.4.85-r0 \
     curl=8.23.0-r0 \
-    gd=2.3.3-r10 && \
+    gd=2.3.3-r10 \
+    zlib=1.4-r0 && \
     # Verify installations
     lighttpd -v && \
     curl --version
