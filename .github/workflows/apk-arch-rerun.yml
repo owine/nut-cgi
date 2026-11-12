@@ -1,0 +1,31 @@
+---
+# Reruns a Renovate PR's failed build once Alpine has published every apk pin
+# on every architecture. Alpine publishes x86_64 and aarch64 separately, so an
+# `alpine packages` PR built in the gap fails on the late arch with
+# `unable to select packages`. The logic lives in owine/renovate-config's
+# reusable workflow; see its README, "apk architecture lag".
+#
+# Scheduled and manual only: it never runs on PRs, so it is not part of
+# ci-pass or any required check.
+name: apk arch-lag rerun
+
+"on":
+  schedule:
+    - cron: '17,47 * * * *'
+  workflow_dispatch:
+
+permissions:
+  actions: write
+  pull-requests: read
+  contents: read
+
+jobs:
+  rerun:
+    uses: owine/renovate-config/.github/workflows/apk-arch-rerun.yml@main
+    with:
+      # build.yml builds linux/amd64 and linux/arm64 natively on every PR.
+      workflow: build.yml
+      # Both stages' pins are checked; each platform leg builds both natively.
+      dockerfile: Dockerfile
+      # Must match branch= in the apk registryUrls in .github/renovate.json.
+      alpine-branch: v3.24
