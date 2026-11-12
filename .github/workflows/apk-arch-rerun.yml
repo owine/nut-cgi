@@ -23,7 +23,8 @@ jobs:
   rerun:
     uses: owine/renovate-config/.github/workflows/apk-arch-rerun.yml@main
     with:
-      # build.yml builds linux/amd64 and linux/arm64 natively on every PR.
+      # build.yml builds linux/amd64 and linux/arm64 natively on every PR that
+      # touches the image (docs-only PRs skip it; apk pin bumps never do).
       workflow: build.yml
       # Both stages' pins are checked; each platform leg builds both natively.
       dockerfile: Dockerfile
