@@ -1,5 +1,5 @@
 # Multi-stage build for minimal runtime image
-FROM alpine:3.24.3@sha256:be2656061b536c1883c4034790e21d0a09c5aaaf51968b89368a3c0371ea2c9a AS builder
+FROM alpine:3.24.4@sha256:f59abe656b692d901e184be3445e084786602108599d2a51d229c0f5a48c71bf AS builder
 
 # NUT release to build from source, and the SHA256 of its release tarball.
 # NUT_VERSION is the upstream git tag, v prefix included: Renovate's
@@ -76,7 +76,7 @@ RUN /usr/local/bin/strip-w3c-badges.sh /build/rootfs/etc/nut/upsstats*.html*
 # ============================================================================
 # Runtime Stage - Minimal footprint
 # ============================================================================
-FROM alpine:3.24.3@sha256:be2656061b536c1883c4034790e21d0a09c5aaaf51968b89368a3c0371ea2c9a
+FROM alpine:3.24.4@sha256:f59abe656b692d901e184be3445e084786602108599d2a51d229c0f5a48c71bf
 
 # Image metadata
 LABEL org.opencontainers.image.title="nut-cgi" \
